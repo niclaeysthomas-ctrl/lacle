@@ -10,6 +10,14 @@ const LCRender = (function () {
   const LETTER_PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
   const BLACK_AFTER = { C: 1, D: 1, F: 1, G: 1, A: 1 }; // lettres suivies d'une touche noire
 
+  // Noms des cordes à vide (aigu -> grave). L'app branche ici son système de
+  // notation (Do Ré Mi ou C D E) pour que le manche parle la même langue que
+  // les questions.
+  const OPEN_LETTERS = ["E", "B", "G", "D", "A", "E"];
+  let NAMEFN = null;
+  function setNames(fn) { NAMEFN = fn; }
+  function openLabels() { return OPEN_LETTERS.map((l) => (NAMEFN ? NAMEFN(l) : l)); }
+
   function has(set, pc) { return set && set.indexOf(((pc % 12) + 12) % 12) !== -1; }
   function nm(spell, pc) { pc = ((pc % 12) + 12) % 12; return spell ? (spell[pc] || "") : ""; }
 
@@ -86,7 +94,7 @@ const LCRender = (function () {
     const H = TOP * 2 + (rows - 1) * RG;
     // MIDI cordes à vide, aigu->grave (index affichage 0..5)
     const openMidi = [64, 59, 55, 50, 45, 40];
-    const openLabel = ["Mi", "Si", "Sol", "Ré", "La", "Mi"];
+    const openLabel = openLabels();
 
     let g = "";
     // bois
@@ -135,11 +143,66 @@ const LCRender = (function () {
     return `<div class="fb-scroll"><svg class="fretboard" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="min-width:${Math.min(W, 640)}px">${g}</svg></div>`;
   }
 
+  /* ------------------- FRETBOARD « QUIZ » (manche vierge) -------------------
+     Toutes les cases sont cliquables (data-str = index LC 0=Mi grave … 5=Mi aigu,
+     data-fret). Rien n'est affiché sauf ce qu'on met dans `marks`/`labels`.
+     opts: {frets, onlyString, marks:{"s:f":"ok"|"ko"|"lit"|"ghost"}, labels:{"s:f":txt}}
+     ------------------------------------------------------------------------ */
+  function fretQuiz(opts) {
+    opts = opts || {};
+    const frets = opts.frets || 12;
+    const only = opts.onlyString == null ? null : opts.onlyString;
+    const marks = opts.marks || {};
+    const labels = opts.labels || {};
+
+    const NUT = 34, FW = 44, TOP = 20, RG = 30, R = 13, rows = 6;
+    const W = NUT + frets * FW + 14;
+    const H = TOP * 2 + (rows - 1) * RG;
+    const openMidi = [64, 59, 55, 50, 45, 40];
+    const openLabel = openLabels();
+
+    let g = `<rect class="fb-wood" x="${NUT}" y="${TOP - 6}" width="${frets * FW}" height="${(rows - 1) * RG + 12}" rx="4"/>`;
+    const single = [3, 5, 7, 9, 15, 17, 19, 21], dbl = [12, 24];
+    const midY = TOP + ((rows - 1) * RG) / 2;
+    single.forEach((f) => { if (f <= frets) g += `<circle class="fb-inlay" cx="${NUT + (f - 0.5) * FW}" cy="${midY}" r="4.5"/>`; });
+    dbl.forEach((f) => {
+      if (f <= frets) {
+        g += `<circle class="fb-inlay" cx="${NUT + (f - 0.5) * FW}" cy="${TOP + RG}" r="4.5"/>`;
+        g += `<circle class="fb-inlay" cx="${NUT + (f - 0.5) * FW}" cy="${TOP + RG * 3}" r="4.5"/>`;
+      }
+    });
+    for (let f = 0; f <= frets; f++) {
+      const x = NUT + f * FW;
+      g += `<line class="${f === 0 ? "fb-nut" : "fb-fret"}" x1="${x}" y1="${TOP - 6}" x2="${x}" y2="${TOP + (rows - 1) * RG + 6}"/>`;
+    }
+    for (let f = 1; f <= frets; f++) g += `<text class="fb-num" x="${NUT + (f - 0.5) * FW}" y="${H - 2}">${f}</text>`;
+
+    for (let r = 0; r < rows; r++) {
+      const y = TOP + r * RG;
+      const s = 5 - r;
+      const off = only != null && s !== only;
+      g += `<line class="fb-string${off ? " dim" : ""}" x1="${NUT}" y1="${y}" x2="${NUT + frets * FW}" y2="${y}"/>`;
+      g += `<text class="fb-open${off ? " dim" : ""}" x="10" y="${y + 4}">${openLabel[r]}</text>`;
+      for (let f = 0; f <= frets; f++) {
+        const midi = openMidi[r] + f, pc = midi % 12;
+        const key = s + ":" + f;
+        const state = marks[key] || "";
+        const cx = f === 0 ? NUT - 16 : NUT + (f - 0.5) * FW;
+        const cls = "fq-pos" + (state ? " " + state : "") + (off ? " off" : "");
+        g += `<g class="${cls}" data-str="${s}" data-fret="${f}" data-midi="${midi}" data-pc="${pc}">`
+          + `<circle cx="${cx}" cy="${y}" r="${R}"/>`
+          + (labels[key] ? `<text x="${cx}" y="${y + 4}">${labels[key]}</text>` : "")
+          + `</g>`;
+      }
+    }
+    return `<div class="fb-scroll"><svg class="fretboard fq" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="min-width:${Math.min(W, 640)}px">${g}</svg></div>`;
+  }
+
   /* ---- petite légende réutilisable ---- */
   function legend(items) {
     return `<div class="legend">` + items.map((it) =>
       `<span class="lg"><span class="lg-sw ${it.cls}"></span>${it.txt}</span>`).join("") + `</div>`;
   }
 
-  return { piano, fretboard, legend };
+  return { piano, fretboard, fretQuiz, legend, setNames };
 })();

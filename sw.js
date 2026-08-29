@@ -1,11 +1,12 @@
 /* LA CLÉ — service worker (offline-first) */
-const CACHE = "lacle-v1";
+const CACHE = "lacle-v2-atelier";
 const ASSETS = [
   "./",
   "./index.html",
   "./theory.js",
   "./render.js",
   "./lessons.js",
+  "./exos.js",
   "./app.js",
   "./manifest.webmanifest",
   "./icon-192.png",

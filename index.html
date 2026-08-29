@@ -277,6 +277,120 @@ header{position:sticky; top:0; z-index:30; background:linear-gradient(180deg,rgb
 .fb-note.all circle{fill:#2c3457; stroke:#454e7e}
 .fb-note.all text{fill:var(--mut); font-size:10px; font-weight:600; text-anchor:middle}
 
+/* ---------- FRETBOARD QUIZ (manche vierge, cases cliquables) ---------- */
+.fq-pos circle{fill:rgba(255,255,255,.045); stroke:rgba(255,255,255,.10); stroke-width:1; transition:.12s}
+.fq-pos{cursor:pointer}
+.fq-pos text{font-size:11px; font-weight:800; text-anchor:middle; pointer-events:none}
+.fq-pos.off{pointer-events:none}
+.fq-pos.off circle{fill:transparent; stroke:none}
+.fq-pos.ok circle{fill:var(--grn); stroke:#0d3324; stroke-width:2}
+.fq-pos.ok text{fill:#05261a}
+.fq-pos.ko circle{fill:var(--red); stroke:#3a1010; stroke-width:2}
+.fq-pos.ko text{fill:#fff}
+.fq-pos.lit circle{fill:var(--gold); stroke:var(--coral); stroke-width:2}
+.fq-pos.lit text{fill:#2a1d04}
+.fq-pos.pen circle{fill:#4b4270; stroke:#7a6fb0; stroke-width:1.5}
+.fq-pos.pen text{fill:#e6e2ff}
+.fb-string.dim{stroke:#464d70; opacity:.45}
+.fb-open.dim{opacity:.35}
+
+/* ---------- ATELIER ---------- */
+.ate-card{background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:15px; margin:0 0 15px; box-shadow:var(--shadow)}
+.ate-card.locked{opacity:.75}
+.ate-h{display:flex; align-items:flex-start; gap:11px; margin-bottom:13px}
+.ate-e{font-size:21px; width:40px; height:40px; display:grid; place-items:center; background:var(--bg2); border:1px solid var(--line); border-radius:11px; flex:0 0 auto}
+.ate-t{font-weight:700; font-size:15.5px}
+.ate-s{font-size:11.5px; color:var(--dim); margin-top:2px; line-height:1.45}
+.ate-s b{color:var(--mut)}
+.ate-c{margin-left:auto; font-size:11px; font-weight:800; color:var(--gold2); background:rgba(243,195,74,.1); padding:4px 8px; border-radius:20px; flex:0 0 auto}
+.ate-lock{background:var(--bg2); border:1px solid var(--line2); border-radius:10px; padding:9px 11px; font-size:12px; color:var(--mut); margin-bottom:11px}
+.kchips{display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-bottom:9px}
+.kchip{padding:10px 0; background:var(--bg2); border:1px solid var(--line); border-radius:10px; font-weight:700; font-size:13.5px; color:var(--dim); position:relative}
+.kchip.l1{color:var(--gold2); border-color:rgba(243,195,74,.45); background:rgba(243,195,74,.08)}
+.kchip.l2{color:#06231f; background:linear-gradient(135deg,var(--teal),#2fb9a6); border-color:transparent}
+.ate-leg{font-size:10.5px; color:var(--dim); display:flex; align-items:center; flex-wrap:wrap; gap:3px; margin-bottom:12px}
+.lgd{width:10px; height:10px; border-radius:3px; display:inline-block; background:var(--bg2); border:1px solid var(--line)}
+.lgd.l1{background:rgba(243,195,74,.5); border-color:var(--gold)}
+.lgd.l2{background:var(--teal); border-color:transparent}
+.cta.sm{font-size:14px; padding:12px}
+.ate-rows{display:flex; flex-direction:column; gap:7px; margin-top:11px}
+.ate-row{display:flex; align-items:center; gap:11px; background:var(--bg2); border:1px solid var(--line); border-radius:11px; padding:11px; text-align:left}
+.ate-row:active{background:var(--card2)}
+.ar-e{font-size:17px; width:30px; text-align:center; flex:0 0 auto}
+.ar-b{flex:1; min-width:0}
+.ar-t{display:block; font-weight:650; font-size:13.5px}
+.ar-s{display:block; font-size:11px; color:var(--dim); margin-top:1px}
+.ar-r{font-size:10.5px; font-weight:700; color:var(--teal); text-align:right; flex:0 0 auto; line-height:1.3}
+.ate-sep{font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.7px; color:var(--dim); margin:24px 2px 12px; padding-top:14px; border-top:1px solid var(--line)}
+.ate-sub{font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; color:var(--violet); margin:16px 2px 8px}
+
+/* rôles de la penta */
+.deg-badge{display:inline-block; background:var(--violet); color:#150c33; font-weight:800; font-size:12px; padding:2px 8px; border-radius:20px; vertical-align:2px; margin-left:2px}
+.role-card{background:var(--bg2); border:1px solid var(--line2); border-left:3px solid var(--violet); border-radius:0 11px 11px 0; padding:12px 14px; margin-top:10px; text-align:left}
+.rc-h{font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; color:var(--violet); margin-bottom:3px}
+.rc-h:not(:first-child){margin-top:11px}
+.rc-b{font-size:13px; line-height:1.55; color:#dbe0f7}
+.rc-b b{color:#fff}
+.rc-b i{color:var(--mut)}
+.prog-txt2{display:inline-block; font-size:18px; color:var(--gold2); letter-spacing:.5px; margin:8px 0 2px}
+
+/* --- feuille d'exercice --- */
+.ex-chap{font-size:12px; color:var(--dim); margin-left:auto}
+.ex-time{font-size:12px; font-weight:800; color:var(--gold2); font-variant-numeric:tabular-nums; min-width:52px; text-align:right}
+.ex-intro{font-size:13px; color:var(--mut); line-height:1.5; margin-bottom:12px}
+.ex-intro.big{font-size:15px; color:var(--ink); font-weight:600}
+.ex-intro b{color:var(--ink)}
+.ex-hint2{font-size:11px; color:var(--dim); text-align:center; margin:-2px 0 14px}
+.dq.sm{font-size:16px; margin:18px 0 16px}
+.dq-hint{display:block; font-size:11.5px; color:var(--dim); font-weight:400; margin-top:5px}
+.ecl-top{font-size:12px; color:var(--dim); text-align:center; margin-bottom:2px}
+.ecl-top b{color:var(--gold2)}
+.dq-c[data-n],.dq-c[data-i]{transition:.1s}
+
+/* ruban de la formule */
+.ribbon{display:flex; align-items:center; justify-content:center; gap:1px; flex-wrap:nowrap; margin:4px 0 6px}
+.rb-deg{width:21px; height:21px; border-radius:50%; display:grid; place-items:center; font-size:10.5px; font-weight:800; background:var(--bg2); border:1px solid var(--line); color:var(--dim); flex:0 0 auto}
+.rb-deg.on{background:var(--gold); border-color:var(--gold); color:#2a1d04}
+.rb-step{font-size:10px; font-weight:800; color:var(--dim); padding:0 2px; flex:0 0 auto}
+.rb-step.cur{color:var(--coral); transform:scale(1.35)}
+
+/* chips de construction */
+.bchips{display:flex; gap:5px; flex-wrap:wrap; justify-content:center; margin:14px 0}
+.bchip{min-width:44px; padding:9px 6px; text-align:center; border-radius:9px; background:var(--bg2); border:1px solid var(--line); color:var(--dim); font-weight:700; font-size:14px}
+.bchip.on{background:var(--card2); border-color:var(--line2); color:var(--gold2)}
+.bchip.cur{border-color:var(--coral); border-style:dashed; color:var(--ink); background:rgba(255,122,92,.1)}
+.bchip .q{color:var(--coral); margin-left:1px}
+
+/* boutons d'altération */
+.acc-row{display:flex; gap:8px}
+.acc-b{flex:1; padding:16px 4px; background:var(--card); border:1px solid var(--line2); border-radius:13px; display:flex; flex-direction:column; align-items:center; gap:4px}
+.acc-s{font-size:21px; color:var(--mut); line-height:1}
+.acc-n{font-size:16px; font-weight:800}
+.acc-b.ok{background:rgba(70,211,138,.18); border-color:var(--grn); color:#bff5d8}
+.acc-b.ko{background:rgba(255,107,107,.15); border-color:var(--red); color:#ffc6c6}
+
+/* chips de degrés (exo « retire les deux ») */
+.degchips{display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin:16px 0}
+.dchip{position:relative; min-width:52px; padding:14px 8px 10px; border-radius:11px; background:var(--card); border:1px solid var(--line2); font-weight:700; font-size:15px; color:var(--ink)}
+.dc-n{position:absolute; top:3px; left:0; right:0; font-size:9px; color:var(--dim); font-weight:800}
+.dchip.sel{background:rgba(255,122,92,.18); border-color:var(--coral)}
+.dchip.bad{background:rgba(255,107,107,.16); border-color:var(--red); color:#ffc6c6; text-decoration:line-through}
+.dchip.keep{background:rgba(243,195,74,.14); border-color:var(--gold); color:var(--gold2)}
+
+/* écrans de victoire */
+.ex-win{text-align:center; padding-top:6px}
+.win-big{font-size:32px; font-weight:800; background:linear-gradient(90deg,var(--gold2),var(--coral));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent; line-height:1.2}
+.win-sub{font-size:13px; color:var(--mut); margin:4px 0 16px}
+.win-sub b{color:var(--gold2)}
+.scale-notes.center{justify-content:center}
+.btnrow.center{justify-content:center}
+.ex-win .hint,.ex-win .fb-ok,.ex-win .fb-ko{text-align:left}
+.ex-win .btn.big{margin-top:9px}
+.pen-two{display:grid; gap:14px; margin:6px 0 4px}
+.rules{margin:0 0 14px; padding-left:20px; font-size:13.5px; line-height:1.6; color:#dbe0f7}
+.rules li{margin:8px 0}
+.rules b{color:var(--gold2)}
+
 /* ---------- legend ---------- */
 .legend{display:flex; gap:14px; flex-wrap:wrap; justify-content:center; margin:8px 0 2px; font-size:11.5px; color:var(--mut)}
 .lg{display:flex; align-items:center; gap:5px}
@@ -303,6 +417,7 @@ header{position:sticky; top:0; z-index:30; background:linear-gradient(180deg,rgb
 <script src="theory.js"></script>
 <script src="render.js"></script>
 <script src="lessons.js"></script>
+<script src="exos.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

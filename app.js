@@ -88,7 +88,7 @@
   let TAB = "socle";
   const TABS = [
     ["socle", "🧭", "Socle"], ["impro", "🎯", "Impro"],
-    ["piano", "🎹", "Piano"], ["manche", "🎸", "Manche"], ["drills", "🔥", "Drills"],
+    ["piano", "🎹", "Piano"], ["manche", "🎸", "Manche"], ["atelier", "⚡", "Atelier"],
   ];
   function go(tab) { TAB = tab; render(); $$(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab)); window.scrollTo(0, 0); }
   function render() {
@@ -97,8 +97,9 @@
     else if (TAB === "impro") v.innerHTML = viewImpro();
     else if (TAB === "piano") v.innerHTML = viewPiano();
     else if (TAB === "manche") v.innerHTML = viewManche();
-    else if (TAB === "drills") v.innerHTML = viewDrills();
+    else if (TAB === "atelier") v.innerHTML = LCEx.view();
     wire();
+    if (TAB === "atelier") LCEx.wire();
   }
 
   /* ================= DEMOS (leçons) ================= */
@@ -257,7 +258,7 @@
       html += `<button class="btn big" data-finish="${l.id}">J'ai compris ✓</button>`;
     }
     html += `</div></div>`;
-    const ov = $("#overlay"); ov.innerHTML = html; ov.classList.add("open");
+    const ov = setOverlay(html);
     wireLesson(l);
   }
   function wireLesson(l) {
@@ -289,7 +290,21 @@
     if (!S.done[id]) { S.done[id] = true; earnXP(ok ? 15 : 8); save(); }
     closeOverlay(); render();
   }
-  function closeOverlay() { const ov = $("#overlay"); ov.classList.remove("open"); setTimeout(() => { ov.innerHTML = ""; }, 200); }
+  /* L'overlay est vidé APRÈS l'animation de sortie. Si on rouvre une feuille
+     entre-temps, ce vidage différé effacerait son contenu : on l'annule. */
+  let wipeId = null;
+  function setOverlay(html) {
+    if (wipeId) { clearTimeout(wipeId); wipeId = null; }
+    const ov = $("#overlay");
+    ov.innerHTML = html; ov.classList.add("open");
+    return ov;
+  }
+  function closeOverlay() {
+    const ov = $("#overlay");
+    ov.classList.remove("open");
+    if (wipeId) clearTimeout(wipeId);
+    wipeId = setTimeout(() => { ov.innerHTML = ""; wipeId = null; }, 200);
+  }
 
   /* ================= VUE : IMPRO ================= */
   const IM = { mode: "chords", chords: [], root: "C", qual: "maj", keyTonic: "C", keyMinor: false, show: "penta", result: null };
@@ -488,8 +503,8 @@
       ${FB.allNotes ? "" : '<div class="hint">Rouge = tonique. Glisse la forme le long du manche : le dessin ne change pas, seule la tonalité change.</div>'}`;
   }
 
-  /* ================= VUE : DRILLS ================= */
-  function viewDrills() {
+  /* ================= DRILLS (section de l'Atelier) ================= */
+  function drillsSection() {
     const st = S.drill || {};
     let cards = DRILLS.map((d) => {
       const s = st[d.id] || { seen: 0, best: 0 };
@@ -497,8 +512,7 @@
         <span class="d-body"><span class="d-name">${d.name}</span><span class="d-desc">${d.desc}</span></span>
         <span class="d-stat">${s.seen ? "★ " + (s.best || 0) : ""}</span></button>`;
     }).join("");
-    return `<div class="v-head"><h1>🔥 Drills</h1><p class="v-sub">Farme jusqu'à l'automatisme. Les réponses sont calculées : questions infinies.</p></div>
-      <button class="cta" data-express="1">⚡ Séance express — 8 questions mélangées</button>
+    return `<button class="cta" data-express="1">⚡ Séance express — 8 questions mélangées</button>
       <div class="streak-row">🔥 Série : <b>${S.streak || 0}</b> j · ${S.xp} XP</div>
       <div class="drill-list">${cards}</div>`;
   }
@@ -563,7 +577,7 @@
           <div class="grade"><button class="btn ko" data-grade="0">Raté</button><button class="btn ok" data-grade="1">Su ✓</button></div></div></div>`;
       }
       body += `</div></div>`;
-      ov.innerHTML = body; ov.classList.add("open");
+      setOverlay(body);
       $("[data-closeq]").onclick = closeQuiz;
       if (cur.type === "mc") {
         let done = false;
@@ -583,7 +597,7 @@
         });
       }
     }
-    function closeQuiz() { ov.classList.remove("open"); setTimeout(() => ov.innerHTML = "", 200); render(); }
+    function closeQuiz() { closeOverlay(); render(); }
     nextQ();
   }
   function record(id, ok) {
@@ -646,8 +660,18 @@
     el.classList.add("hit"); setTimeout(() => el.classList.remove("hit"), 200);
   });
 
+  /* ========= pont vers L'ATELIER (exos.js) ========= */
+  const LCAPP = {
+    get S() { return S; },
+    save, earnXP, render, go, setOverlay, closeOverlay,
+    disp, dl, PC, pcsOf, spellMap, keySpell, minorSpell, scaleNotes,
+    wireAudio: wireAudioButtons, drillsSection,
+  };
+
   /* ================= INIT ================= */
   function init() {
+    if (typeof LCEx !== "undefined") LCEx.init(LCAPP);
+    LCRender.setNames(disp);
     $("#nav").innerHTML = TABS.map((t) => `<button class="nav-item ${t[0] === "socle" ? "active" : ""}" data-tab="${t[0]}"><span class="ni-e">${t[1]}</span><span class="ni-t">${t[2]}</span></button>`).join("");
     $$(".nav-item").forEach((b) => b.onclick = () => go(b.dataset.tab));
     $("#nsToggle").onclick = () => { S.nameSystem = S.nameSystem === "latin" ? "letters" : "latin"; save(); paintHeader(); render(); if ($("#overlay").classList.contains("open")) closeOverlay(); };
