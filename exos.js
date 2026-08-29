@@ -36,10 +36,23 @@ const LCEx = (function () {
     if (!S.ate) S.ate = {};
     if (!S.ate.done) S.ate.done = {};
     if (!S.ate.best) S.ate.best = {};
+    if (!S.ate.rev) S.ate.rev = {};
     return S.ate;
   }
   const isDone = (k) => !!st().done[k];
   function setDone(k) { st().done[k] = true; A.save(); }
+  function unsetDone(k) { delete st().done[k]; A.save(); }
+
+  /* ---- révision espacée : savoir une gamme un jour ne prouve rien ---- */
+  const IVL = [2, 5, 12, 30];                       // jours
+  const jour = () => Math.floor(Date.now() / 864e5);
+  function planifier(k, ok) {
+    const r = st().rev;
+    const step = ok ? Math.min((r[k] ? r[k].step : 0) + 1, IVL.length) : 1;
+    r[k] = { step: step, due: jour() + IVL[step - 1] };
+    A.save();
+  }
+  function estDu(k) { const r = st().rev[k]; return !!r && jour() >= r.due; }
   const getBest = (k) => st().best[k] || null;
   function setBest(k, v) {                       // score haut d'abord, puis temps bas
     const b = getBest(k);
@@ -74,11 +87,19 @@ const LCEx = (function () {
     $("#exQuit").onclick = closeSheet;
   }
   function closeSheet() { stopT(); A.closeOverlay(); A.render(); }
-  function paint(html) {
+  /* `keep` = on répond à l'intérieur d'une même question (on marque une case,
+     on affiche un retour) : il ne faut alors PAS renvoyer l'écran en haut ni
+     ramener le manche au sillet — sinon on perd la case qu'on vient de toucher. */
+  function paint(html, keep) {
     const b = $("#exBody");
     if (!b) return;
+    const old = b.querySelector(".fb-scroll");
+    const left = old ? old.scrollLeft : 0;
+    const top = keep ? b.scrollTop : 0;
     b.innerHTML = html;
-    b.scrollTop = 0;
+    const neuf = b.querySelector(".fb-scroll");
+    if (neuf && left) neuf.scrollLeft = left;
+    b.scrollTop = top;
     A.wireAudio(b);
   }
   function on(sel, fn) { $$(sel, $("#exBody")).forEach((el) => { el.onclick = () => fn(el); }); }
@@ -111,13 +132,16 @@ const LCEx = (function () {
   function cardGammes() {
     const done = CIRCLE.filter((t) => keyLvl(t) === 2).length;
     const next = CIRCLE.find((t) => keyLvl(t) < 2) || CIRCLE[0];
-    const chips = CIRCLE.map((t) => `<button class="kchip l${keyLvl(t)}" data-gkey="${t}">${A.disp(t)}</button>`).join("");
+    const dus = CIRCLE.filter((t) => keyLvl(t) === 2 && estDu("g:" + t));
+    const chips = CIRCLE.map((t) =>
+      `<button class="kchip l${keyLvl(t)}${dus.indexOf(t) >= 0 ? " due" : ""}" data-gkey="${t}">${A.disp(t)}</button>`).join("");
     return `<div class="ate-card">
       <div class="ate-h"><span class="ate-e">🎼</span><div><div class="ate-t">Les 12 gammes majeures</div>
         <div class="ate-s">Les <b>trouver</b> avec la formule, puis les <b>savoir</b> sans réfléchir.</div></div>
         <span class="ate-c">${done}/12</span></div>
       <div class="kchips">${chips}</div>
-      <div class="ate-leg"><span class="lgd l0"></span> jamais faite &nbsp; <span class="lgd l1"></span> construite &nbsp; <span class="lgd l2"></span> sue par cœur</div>
+      <div class="ate-leg"><span class="lgd l0"></span> jamais faite &nbsp; <span class="lgd l1"></span> construite &nbsp; <span class="lgd l2"></span> sue par cœur &nbsp; <span class="lgd due"></span> à réviser</div>
+      ${dus.length ? `<button class="cta rev" data-gkey="${dus[0]}">🔁 À réviser aujourd'hui : ${dus.map(A.disp).join(" · ")}</button>` : ""}
       <button class="cta sm" data-gkey="${next}">▶ ${done ? "Continuer" : "Commencer"} : ${A.disp(next)} majeur</button>
       <div class="ate-rows">
         ${row("eclair-gammes", "⚡", "Éclair — gammes", "20 questions contre le chrono", recTxt("ecl:gammes", "/20"))}
@@ -128,14 +152,17 @@ const LCEx = (function () {
     const done = CIRCLE.filter(pentaOK).length;
     const next = CIRCLE.find((t) => !pentaOK(t)) || CIRCLE[0];
     const gDone = CIRCLE.filter((t) => keyLvl(t) === 2).length;
-    const chips = CIRCLE.map((t) => `<button class="kchip ${pentaOK(t) ? "l2" : "l0"}" data-pkey="${t}">${A.disp(t)}</button>`).join("");
-    const lock = gDone < 3 ? `<div class="ate-lock">🔒 Fais d'abord <b>3 gammes majeures</b> — la penta se déduit de la gamme, pas l'inverse.</div>` : "";
+    const dus = CIRCLE.filter((t) => pentaOK(t) && estDu("p:" + t));
+    const chips = CIRCLE.map((t) =>
+      `<button class="kchip ${pentaOK(t) ? "l2" : "l0"}${dus.indexOf(t) >= 0 ? " due" : ""}" data-pkey="${t}">${A.disp(t)}</button>`).join("");
+    const lock = gDone < 3 ? `<div class="ate-lock">⚠️ Rien ne t'empêche de commencer ici — mais la penta se <b>déduit</b> de la gamme. Fais d'abord <b>3 gammes majeures</b>, sinon tu apprends 12 listes de notes par cœur au lieu d'une règle.</div>` : "";
     return `<div class="ate-card ${gDone < 3 ? "locked" : ""}">
       <div class="ate-h"><span class="ate-e">⭐</span><div><div class="ate-t">Les pentas associées</div>
         <div class="ate-s">La gamme <b>moins ses deux notes qui frottent</b> + sa jumelle mineure.</div></div>
         <span class="ate-c">${done}/12</span></div>
       ${lock}
       <div class="kchips">${chips}</div>
+      ${dus.length ? `<button class="cta rev" data-pkey="${dus[0]}">🔁 À réviser aujourd'hui : ${dus.map(A.disp).join(" · ")}</button>` : ""}
       <button class="cta sm" data-pkey="${next}">▶ ${done ? "Continuer" : "Commencer"} : penta de ${A.disp(next)}</button>
       <div class="ate-sub">🎸 Sur le manche — le rôle de chaque note</div>
       <div class="ate-rows">
@@ -154,9 +181,9 @@ const LCEx = (function () {
         <span class="ate-c">${done}/5</span></div>
       <div class="ate-rows">
         ${row("reperes", isDone("f:reperes") ? "✅" : "🧭", "Les repères", "Les 5 règles qui remplacent le comptage", "")}
-        ${row("touche1", isDone("f:touche1") ? "✅" : "①", "Touche la note · 3 cordes graves", "Mi · La · Ré, cases 0 à 12", recTxt("touche:1", "/10"))}
+        ${row("touche1", isDone("f:touche1") ? "✅" : "①", "Touche la note · 3 cordes graves", `${A.disp("E")} · ${A.disp("A")} · ${A.disp("D")}, cases 0 à 12`, recTxt("touche:1", "/10"))}
         ${row("touche2", isDone("f:touche2") ? "✅" : "②", "Touche la note · les 6 cordes", "Tout le manche, corde imposée", recTxt("touche:2", "/10"))}
-        ${row("toutes", isDone("f:toutes") ? "✅" : "🗺️", "Toutes les X", "Trouve chaque Do du manche, sans en rater un", recTxt("toutes", "errs"))}
+        ${row("toutes", isDone("f:toutes") ? "✅" : "🗺️", "Toutes les X", `Trouve chaque ${A.disp("C")} du manche, sans en rater un`, recTxt("toutes", "errs"))}
         ${row("octaves", isDone("f:octaves") ? "✅" : "🔭", "Les octaves", "Se déplacer par formes, pas par lettres", recTxt("octaves", "/10"))}
         ${row("eclair-manche", "⚡", "Éclair — manche", "20 questions contre le chrono", recTxt("ecl:manche", "/20"))}
       </div></div>`;
@@ -174,10 +201,14 @@ const LCEx = (function () {
       </div></div>`;
   }
 
+  // Scopé à #view : l'overlay reste dans le DOM 200 ms après une fermeture,
+  // on ne veut pas recâbler ses boutons au passage.
   function wire() {
-    $$("[data-gkey]").forEach((b) => { b.onclick = () => startKey(b.dataset.gkey); });
-    $$("[data-pkey]").forEach((b) => { b.onclick = () => startPenta(b.dataset.pkey); });
-    $$("[data-ex]").forEach((b) => { b.onclick = () => startEx(b.dataset.ex); });
+    const v = $("#view");
+    if (!v) return;
+    $$("[data-gkey]", v).forEach((b) => { b.onclick = () => startKey(b.dataset.gkey); });
+    $$("[data-pkey]", v).forEach((b) => { b.onclick = () => startPenta(b.dataset.pkey); });
+    $$("[data-ex]", v).forEach((b) => { b.onclick = () => startEx(b.dataset.ex); });
   }
   function startEx(id) {
     if (id === "eclair-gammes") return runEclair("gammes", "⚡ Éclair · gammes", qGammes);
@@ -217,6 +248,7 @@ const LCEx = (function () {
     if (e) c.push(e);
     c.push(LC.SHARP[(pc + 1) % 12], LC.SHARP[(pc + 11) % 12], correct[0]);
     shuffle((pool || []).filter((n) => n !== correct)).forEach((n) => c.push(n));
+    c.push(LC.SHARP[(pc + 2) % 12], LC.SHARP[(pc + 10) % 12]);   // filet : toujours 4 choix
     return uniq(c).slice(0, 4);
   }
 
@@ -313,11 +345,16 @@ const LCEx = (function () {
   }
 
   /* -------- Exo 1.2 : ÉPELER DE TÊTE (la lettre est forcée, l'altération non) ---- */
-  function exSpell(tonic, kind) {
+  function exSpell(tonic, kind, onDone) {
     const notes = kind === "major" ? LC.majorScale(tonic)
       : kind === "majpenta" ? LC.majorPenta(tonic) : LC.minorPenta(tonic);
     const title = kind === "major" ? A.disp(tonic) + " majeur"
       : kind === "majpenta" ? "penta majeure de " + A.disp(tonic) : "penta mineure de " + A.disp(tonic) + "m";
+    const intro = kind === "major"
+      ? `Une gamme prend les <b>lettres dans l'ordre</b>. La lettre est donnée — à toi l'<b>altération</b>.`
+      : kind === "majpenta"
+        ? `Penta majeure = degrés <b>1 · 2 · 3 · 5 · 6</b>. La lettre est donnée — à toi l'altération.`
+        : `Penta mineure = degrés <b>1 · ♭3 · 4 · 5 · ♭7</b>. La lettre est donnée — à toi l'altération.`;
     const doneKey = kind === "major" ? "g:" + tonic + ":spell" : null;
     let i = 1, errs = 0, locked = false;
     openSheet("✍️ Épelle · " + title);
@@ -334,9 +371,9 @@ const LCEx = (function () {
       if (i >= notes.length) return finish();
       const L = notes[i][0];
       const opts = [-1, 0, 1].map((a) => ({ a, n: LC.letterAcc(L, a) }));
-      paint(`<div class="ex-intro">Une gamme prend les <b>lettres dans l'ordre</b>. La lettre est donnée — à toi l'<b>altération</b>.</div>
+      paint(`<div class="ex-intro">${intro}</div>
         ${slots()}
-        <div class="dq sm">Degré <b>${i + 1}</b> : c'est un <b>${A.disp(L)}</b>. Nature, dièse ou bémol ?</div>
+        <div class="dq sm">${kind === "major" ? "Degré" : "Note"} <b>${i + 1}</b> : c'est un <b>${A.disp(L)}</b>. Nature, dièse ou bémol ?</div>
         <div class="acc-row">${opts.map((o) =>
           `<button class="acc-b" data-a="${o.a}"><span class="acc-s">${o.a === 0 ? "♮" : o.a > 0 ? "♯" : "♭"}</span><span class="acc-n">${A.disp(o.n)}</span></button>`).join("")}</div>
         <div class="dq-fb">${fb}</div>`);
@@ -361,9 +398,15 @@ const LCEx = (function () {
     function finish() {
       const ms = stopT();
       const clean = errs === 0;
+      if (onDone) return onDone(errs, ms);      // maillon d'une chaîne (pentas)
+      let retrograde = false;
       if (doneKey) {
-        const first = !isDone(doneKey);
-        if (clean) { setDone(doneKey); if (first) A.earnXP(30); }
+        const dejaSu = isDone(doneKey);
+        if (clean) { setDone(doneKey); A.earnXP(dejaSu ? 12 : 30); planifier("g:" + tonic, true); }
+        else if (dejaSu) {
+          // révision ratée : une gamme qu'on n'épelle plus n'est pas sue. On la redescend.
+          unsetDone(doneKey); planifier("g:" + tonic, false); retrograde = true;
+        }
         setBest("spell:" + tonic, { score: clean ? 1 : 0, time: ms });
       } else A.earnXP(clean ? 15 : 6);
       paint(`<div class="ex-win">
@@ -373,8 +416,10 @@ const LCEx = (function () {
         <div class="btnrow center"><button class="btn" data-seq="${tonic}:${kind === "major" ? "major" : kind}">▶ Écouter</button></div>
         ${kind === "major" ? `<div class="hint">${sigExplain(tonic)}</div>` : ""}
         ${clean
-          ? `<div class="fb-ok">✅ ${kind === "major" ? `<b>${A.disp(tonic)} majeur</b> est marquée sue par cœur.` : "Propre."} Reviens dessus dans deux jours : c'est la deuxième fois qui grave.</div>`
-          : `<div class="fb-ko">Pas encore. Il faut <b>0 faute</b> pour valider la gamme — refais-la maintenant, tant que c'est frais.</div>`}
+          ? `<div class="fb-ok">✅ ${kind === "major" ? `<b>${A.disp(tonic)} majeur</b> est marquée sue par cœur.` : "Propre."} Elle te sera <b>reproposée dans ${IVL[Math.min((st().rev["g:" + tonic] || { step: 1 }).step, IVL.length) - 1]} jours</b> : c'est la deuxième fois qui grave, pas la première.</div>`
+          : retrograde
+            ? `<div class="fb-ko">Révision ratée. <b>${A.disp(tonic)} majeur</b> repasse en « construite » : une gamme qu'on n'épelle plus sans faute n'est pas une gamme sue. Refais-la maintenant, tu la récupères en 30 secondes.</div>`
+            : `<div class="fb-ko">Pas encore. Il faut <b>0 faute</b> pour valider la gamme — refais-la maintenant, tant que c'est frais.</div>`}
         <button class="btn big ${clean ? "ghost" : "primary"}" id="again">↻ Refaire</button>
         ${clean && kind === "major" ? `<button class="btn big primary" id="nextKey">Gamme suivante →</button>` : ""}
         <button class="btn big ghost" id="quit">Terminer</button></div>`);
@@ -387,7 +432,31 @@ const LCEx = (function () {
   /* =========================================================================
      CHANTIER 2 — LES PENTAS
      ========================================================================= */
-  function startPenta(t) { exRetire(t); }
+  // Penta déjà acquise → on révise (épellation seule) ; sinon parcours complet.
+  function startPenta(t) { return pentaOK(t) ? revPenta(t) : exRetire(t); }
+
+  function revPenta(t) {
+    exSpell(t, "majpenta", (errs, ms) => {
+      const clean = errs === 0;
+      planifier("p:" + t, clean);
+      if (!clean) unsetDone("p:" + t);
+      A.earnXP(clean ? 12 : 3);
+      const rm = LC.relativeMinor(t);
+      paint(`<div class="ex-win">
+        <div class="win-big">${clean ? "0 faute · " + fmtT(ms) : errs + " faute" + (errs > 1 ? "s" : "")}</div>
+        <div class="win-sub">Révision · penta de ${A.disp(t)}</div>
+        <div class="scale-notes center">${A.dl(LC.majorPenta(t)).map((n) => `<span class="sn">${n}</span>`).join("")}</div>
+        <div class="btnrow center"><button class="btn" data-seq="${t}:majpenta">▶ Majeure</button>
+          <button class="btn" data-seq="${rm}:minpenta">▶ ${A.disp(rm)} mineure</button></div>
+        ${clean
+          ? `<div class="fb-ok">✅ Toujours là. Prochaine révision dans <b>${IVL[Math.min(st().rev["p:" + t].step, IVL.length) - 1]} jours</b>.</div>`
+          : `<div class="fb-ko">Elle n'est plus acquise : la penta de ${A.disp(t)} repasse à refaire en entier. Ça arrive — c'est exactement pour ça qu'on révise.</div>`}
+        <button class="btn big primary" id="again">↻ Refaire</button>
+        <button class="btn big ghost" id="quit">Terminer</button></div>`);
+      btn("again", () => startPenta(t));
+      btn("quit", closeSheet);
+    });
+  }
 
   /* -------- Exo 2.1 : retirer les degrés 4 et 7 -------- */
   function exRetire(tonic) {
@@ -397,17 +466,19 @@ const LCEx = (function () {
     openSheet("⭐ Retire les deux · " + A.disp(tonic));
     draw("");
 
-    function draw(fb) {
+    function draw(fb, keep) {
       paint(`<div class="ex-intro">La penta majeure, c'est la gamme majeure <b>moins deux notes</b>. Toujours les mêmes degrés.</div>
         <div class="dq sm">Dans <b>${A.disp(tonic)} majeur</b>, touche les <b>2 notes</b> qui ne sont <b>pas</b> dans la penta majeure.</div>
         <div class="degchips">${s.map((n, d) => {
-          let cls = sel.indexOf(d) >= 0 ? "sel" : "";
-          if (locked) cls = target.indexOf(d) >= 0 ? "bad" : "keep";
+          const pris = sel.indexOf(d) >= 0, cible = target.indexOf(d) >= 0;
+          let cls = pris ? "sel" : "";
+          // après validation : on montre la bonne réponse ET ce qu'il a choisi à tort
+          if (locked) cls = cible ? "bad" : (pris ? "wrongpick" : "keep");
           return `<button class="dchip ${cls}" data-d="${d}"><span class="dc-n">${d + 1}</span>${A.disp(n)}</button>`;
         }).join("")}</div>
-        <div class="dq-fb">${fb}</div>`);
+        <div class="dq-fb">${fb}</div>`, keep);
       if (!locked) on("[data-d]", tap);
-      btn("nx", () => exSpell2(tonic));
+      btn("nx", () => exSpell(tonic, "majpenta", () => exJumelle(tonic)));
     }
     function tap(el) {
       const d = +el.dataset.d;
@@ -428,38 +499,8 @@ const LCEx = (function () {
     }
   }
 
-  /* -------- Exo 2.2/2.3 : épeler la penta, puis trouver la jumelle -------- */
-  function exSpell2(tonic) {
-    const notes = LC.majorPenta(tonic);
-    let i = 1, errs = 0, locked = false;
-    openSheet("⭐ Épelle la penta · " + A.disp(tonic));
-    draw("");
-    function accOf(n) { let a = 0; for (let k = 1; k < n.length; k++) { if (n[k] === "#") a++; else if (n[k] === "b") a--; } return a; }
-    function draw(fb) {
-      if (i >= notes.length) return exJumelle(tonic, errs);
-      const L = notes[i][0];
-      paint(`<div class="ex-intro">Penta majeure = degrés <b>1 · 2 · 3 · 5 · 6</b>.</div>
-        <div class="bchips">${notes.map((n, d) => `<span class="bchip ${d < i ? "on" : ""} ${d === i ? "cur" : ""}">${d < i ? A.disp(n) : (d === i ? A.disp(n[0]) + "<span class='q'>?</span>" : "·")}</span>`).join("")}</div>
-        <div class="dq sm">Note <b>${i + 1}</b> : un <b>${A.disp(L)}</b>. Nature, dièse ou bémol ?</div>
-        <div class="acc-row">${[-1, 0, 1].map((a) =>
-          `<button class="acc-b" data-a="${a}"><span class="acc-s">${a === 0 ? "♮" : a > 0 ? "♯" : "♭"}</span><span class="acc-n">${A.disp(LC.letterAcc(L, a))}</span></button>`).join("")}</div>
-        <div class="dq-fb">${fb}</div>`);
-      locked = false;
-      on("[data-a]", (el) => answer(+el.dataset.a));
-    }
-    function answer(a) {
-      if (locked) return; locked = true;
-      const c = accOf(notes[i]);
-      $$("[data-a]", $("#exBody")).forEach((x) => {
-        if (+x.dataset.a === c) x.classList.add("ok"); else if (+x.dataset.a === a) x.classList.add("ko");
-        x.disabled = true;
-      });
-      if (a === c) { i++; setTimeout(() => draw(""), 240); }
-      else { errs++; $(".dq-fb").innerHTML = `<div class="fb-ko">❌ C'est <b>${A.disp(notes[i])}</b>.</div><button class="btn big" id="nx">Continuer →</button>`; btn("nx", () => { i++; draw(""); }); }
-    }
-  }
-
-  function exJumelle(tonic, errsBefore) {
+  /* -------- Exo 2.2 puis 2.3 : épeler la penta (via exSpell), puis la jumelle ---- */
+  function exJumelle(tonic) {
     const rm = LC.relativeMinor(tonic);
     const mp = LC.majorPenta(tonic), np = LC.minorPenta(rm);
     let locked = false;
@@ -490,6 +531,7 @@ const LCEx = (function () {
     function finish() {
       const first = !isDone("p:" + tonic);
       setDone("p:" + tonic);
+      planifier("p:" + tonic, true);
       if (first) A.earnXP(25);
       paint(`<div class="ex-win"><div class="win-big">Penta de ${A.disp(tonic)} ✓</div>
         <div class="win-sub">Deux noms, cinq notes, un seul dessin.</div>
@@ -528,10 +570,10 @@ const LCEx = (function () {
         why: `<b>Case 5 = la corde suivante à vide</b>. Ça marche pour toutes les paires… sauf une.` },
       { p: `L'exception : la corde de <b>${A.disp("B")}</b> à vide se trouve sur quelle case de la corde de <b>${A.disp("G")}</b> ?`, c: `case 4`,
         w: [`case 5`, `case 3`, `case 6`],
-        why: `Sol→Si, c'est <b>4 cases</b> : l'accordage de la guitare fait un « décalage » à cet endroit. C'est la seule exception — et c'est elle qui fait rater les gens.` },
+        why: `${A.disp("G")}→${A.disp("B")}, c'est <b>4 cases</b> : l'accordage de la guitare fait un « décalage » à cet endroit. C'est la seule exception — et c'est elle qui fait rater les gens.` },
       { p: `Une note case <b>3</b> de la corde de <b>${A.disp("E")}</b> grave. La même à l'octave ?`, c: `case 5 de la corde de ${A.disp("D")}`,
         w: [`case 3 de la corde de ${A.disp("D")}`, `case 5 de la corde de ${A.disp("A")}`, `case 7 de la corde de ${A.disp("D")}`],
-        why: `<b>2 cordes plus aiguës, +2 cases</b> : c'est LA forme d'octave. (+3 cases dès que la corde de Si est concernée.)` },
+        why: `<b>2 cordes plus aiguës, +2 cases</b> : c'est LA forme d'octave. (+3 cases dès que la corde de ${A.disp("B")} est concernée.)` },
     ];
     let n = 0, score = 0;
     openSheet("🧭 Les repères");
@@ -545,7 +587,7 @@ const LCEx = (function () {
           <li><b>Octave = 2 cordes plus aiguës, +2 cases</b> (+3 quand la corde de ${A.disp("B")} est dans le coup).</li>
           <li><b>Pas de case entre ${A.disp("E")}–${A.disp("F")} ni ${A.disp("B")}–${A.disp("C")}</b> : ces paires sont collées. Toutes les autres lettres ont une case entre elles.</li>
         </ol>
-        <div class="hint">Les points blancs du manche (3 · 5 · 7 · 9 · 12) ne sont pas décoratifs : ce sont tes points d'ancrage. Apprends d'abord les notes <b>sur ces cases-là</b>, cordes de Mi et de La.</div>
+        <div class="hint">Les points blancs du manche (3 · 5 · 7 · 9 · 12) ne sont pas décoratifs : ce sont tes points d'ancrage. Apprends d'abord les notes <b>sur ces cases-là</b>, cordes de ${A.disp("E")} et de ${A.disp("A")}.</div>
         ${LCRender.fretboard({ frets: 12, showAll: true, spell: A.spellMap("#", []) })}
         <button class="btn big primary" id="go">J'ai lu — teste-moi →</button>`);
       btn("go", next);
@@ -601,12 +643,12 @@ const LCEx = (function () {
       q = { s: s, pc: pc, pos: pos }; n++; marks = {}; locked = false;
       draw("");
     }
-    function draw(fb) {
+    function draw(fb, keep) {
       paint(`<div class="ecl-top">${n}/${TOTAL} · <b>${score}</b> bonne${score > 1 ? "s" : ""}</div>
         <div class="dq sm">Touche un <b>${noteName(q.pc)}</b> sur la corde de <b>${strName(q.s)}</b>
           <span class="dq-hint">cases 0 à 12 · la case 0 = corde à vide, à gauche du sillet</span></div>
         ${LCRender.fretQuiz({ frets: 12, onlyString: q.s, marks: marks, labels: markLabels(marks) })}
-        <div class="dq-fb">${fb}</div>`);
+        <div class="dq-fb">${fb}</div>`, keep);
       if (!locked) on("[data-fret]", tap);
       btn("nx", next);
     }
@@ -622,7 +664,7 @@ const LCEx = (function () {
       draw(`<div class="${ok ? "fb-ok" : "fb-ko"}">${ok
         ? "✅"
         : `❌ Sur la corde de ${strName(q.s)}, le ${noteName(q.pc)} est <b>case ${q.pos.join(" et case ")}</b>. Corde à vide = ${A.disp(STR_PC[q.s])} : compte les demi-tons depuis là.`}</div>
-        <button class="btn big" id="nx">Suivant →</button>`);
+        <button class="btn big" id="nx">Suivant →</button>`, true);
     }
     function finish() {
       const ms = stopT();
@@ -656,12 +698,12 @@ const LCEx = (function () {
       for (let s = 0; s < 6; s++) for (let f = 0; f <= 12; f++) if (LC.fretPc(s, f) === pc) all.push(s + ":" + f);
       draw("");
     }
-    function draw(fb) {
+    function draw(fb, keep) {
       paint(`<div class="ecl-top">Note ${r}/${ROUNDS} · trouvées <b>${Object.keys(found).length}</b>/${all.length} · ${errsTot} erreur${errsTot > 1 ? "s" : ""}</div>
         <div class="dq sm">Touche <b>tous les ${noteName(pc)}</b> du manche
           <span class="dq-hint">6 cordes, cases 0 à 12 — il y en a ${all.length}</span></div>
         ${LCRender.fretQuiz({ frets: 12, marks: marks, labels: markLabels(marks) })}
-        <div class="dq-fb">${fb}</div>`);
+        <div class="dq-fb">${fb}</div>`, keep);
       on("[data-fret]", tap);
       btn("nx", nextRound);
     }
@@ -672,12 +714,12 @@ const LCEx = (function () {
         found[key] = 1; marks[key] = "ok";
         if (Object.keys(found).length === all.length) {
           return draw(`<div class="fb-ok">✅ Les ${all.length} ${noteName(pc)} du manche.</div>
-            <button class="btn big primary" id="nx">${r >= ROUNDS ? "Terminer →" : "Note suivante →"}</button>`);
+            <button class="btn big primary" id="nx">${r >= ROUNDS ? "Terminer →" : "Note suivante →"}</button>`, true);
         }
-        draw("");
+        draw("", true);
       } else {
         errsTot++; marks[key] = "ko";
-        draw(`<div class="fb-ko">❌ Ça, c'est un <b>${noteName(LC.fretPc(+el.dataset.str, +el.dataset.fret))}</b>. Continue.</div>`);
+        draw(`<div class="fb-ko">❌ Ça, c'est un <b>${noteName(LC.fretPc(+el.dataset.str, +el.dataset.fret))}</b>. Continue.</div>`, true);
       }
     }
     function finish() {
@@ -713,13 +755,13 @@ const LCEx = (function () {
       labels = {}; labels[s + ":" + f] = noteName(q.pc);
       draw("");
     }
-    function draw(fb) {
+    function draw(fb, keep) {
       paint(`<div class="ecl-top">${n}/${TOTAL} · <b>${score}</b> bonne${score > 1 ? "s" : ""}</div>
         <div class="dq sm">Voici un <b>${noteName(q.pc)}</b> (corde de ${strName(q.s)}, case ${q.f}).<br>
           Touche le <b>même ${noteName(q.pc)} une octave plus haut</b>.
           <span class="dq-hint">2 cordes plus aiguës = 2 lignes plus haut sur le schéma</span></div>
         ${LCRender.fretQuiz({ frets: 12, marks: marks, labels: labels })}
-        <div class="dq-fb">${fb}</div>`);
+        <div class="dq-fb">${fb}</div>`, keep);
       if (!locked) on("[data-fret]", tap);
       btn("nx", next);
     }
@@ -734,7 +776,7 @@ const LCEx = (function () {
       if (!ok) { marks[q.ts + ":" + q.tf] = "lit"; labels[q.ts + ":" + q.tf] = noteName(q.pc); }
       if (ok) score++;
       draw(`<div class="${ok ? "fb-ok" : "fb-ko"}">${ok ? "✅" : "❌"} <b>2 cordes plus aiguës, +${q.add} cases</b> ${q.add === 3 ? "(+3 : la corde de " + A.disp("B") + " décale tout)" : "(+2 : la règle normale)"}. Corde de ${strName(q.ts)}, case ${q.tf}.</div>
-        <button class="btn big" id="nx">Suivant →</button>`);
+        <button class="btn big" id="nx">Suivant →</button>`, true);
     }
     function finish() {
       const ms = stopT();
@@ -814,12 +856,21 @@ const LCEx = (function () {
   function exPenta(lv) {
     const TOTAL = 8;
     let n = 0, score = 0, q = null, locked = false, marks = {}, labels = {};
+    // Sac de questions : chaque rôle du niveau passe avant qu'un seul se répète.
+    let sac = [];
+    function tirer() {
+      if (!sac.length) {
+        pentaLevels(lv).forEach((c) => c.idx.forEach((k) => sac.push({ conf: c, k: k })));
+        sac = shuffle(sac);
+      }
+      return sac.pop();
+    }
     openSheet("🎯 Rôles de la penta · niveau " + lv);
     startT(); next();
 
     function next() {
       if (n >= TOTAL) return finish();
-      const conf = pick(pentaLevels(lv));
+      const tir = tirer(), conf = tir.conf;
       const tonic = conf.type === "min" ? LC.relativeMinor(pick(CIRCLE)) : pick(CIRCLE);
       const notes = conf.type === "min" ? LC.minorPenta(tonic) : LC.majorPenta(tonic);
       const pcs = notes.map(PCS);
@@ -831,9 +882,8 @@ const LCEx = (function () {
         target = (PCS(tonic) + (which === "maj3" ? 4 : 6)) % 12;
         role = HORS[which];
       } else {
-        const k = pick(conf.idx);
-        role = (conf.type === "min" ? ROLE_MIN : ROLE_MAJ)[k];
-        target = pcs[k];
+        role = (conf.type === "min" ? ROLE_MIN : ROLE_MAJ)[tir.k];
+        target = pcs[tir.k];
       }
       q = { tonic: tonic, type: conf.type, notes: notes, pcs: pcs, target: target, role: role, hors: horsRoll };
       n++; locked = false;
@@ -843,14 +893,14 @@ const LCEx = (function () {
       }
       draw("");
     }
-    function draw(fb) {
+    function draw(fb, keep) {
       const nomPenta = q.type === "min" ? `penta <b>mineure</b> de ${A.disp(q.tonic)}` : `penta <b>majeure</b> de ${A.disp(q.tonic)}`;
       paint(`<div class="ecl-top">${n}/${TOTAL} · <b>${score}</b> bonne${score > 1 ? "s" : ""}</div>
         <div class="dq sm">Tu es en <b>${A.disp(q.tonic)} ${q.type === "min" ? "mineur" : "majeur"}</b>. Voici ta ${nomPenta}.<br>
           Touche <b>${q.role.nom}</b>${q.hors ? "" : ` <span class="deg-badge">${q.role.deg}</span>`}
           <span class="dq-hint">${q.hors ? "elle n'est pas allumée : c'est une note qu'on AJOUTE" : "n'importe laquelle des positions compte"}</span></div>
         ${LCRender.fretQuiz({ frets: 12, marks: marks, labels: labels })}
-        <div class="dq-fb">${fb}</div>`);
+        <div class="dq-fb">${fb}</div>`, keep);
       if (!locked) on("[data-fret]", tap);
       btn("nx", next);
     }
@@ -873,7 +923,7 @@ const LCEx = (function () {
       draw(`<div class="${ok ? "fb-ok" : "fb-ko"}">${ok ? "✅" : "❌"} <b>${q.role.nom}</b> de ${A.disp(q.tonic)} = <b>${noteName(q.target)}</b> (en or sur le manche).</div>
         <div class="role-card"><div class="rc-h">Ce qu'elle dit</div><div class="rc-b">${q.role.dit}</div>
         <div class="rc-h">Quand la jouer</div><div class="rc-b">${q.role.quand}</div></div>
-        <button class="btn big" id="nx">Suivant →</button>`);
+        <button class="btn big" id="nx">Suivant →</button>`, true);
     }
     function finish() {
       const ms = stopT();

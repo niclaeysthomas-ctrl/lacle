@@ -312,7 +312,11 @@ header{position:sticky; top:0; z-index:30; background:linear-gradient(180deg,rgb
 .lgd{width:10px; height:10px; border-radius:3px; display:inline-block; background:var(--bg2); border:1px solid var(--line)}
 .lgd.l1{background:rgba(243,195,74,.5); border-color:var(--gold)}
 .lgd.l2{background:var(--teal); border-color:transparent}
+.lgd.due{background:var(--card2); border:2px dashed var(--coral)}
+.kchip.due{border:2px dashed var(--coral)}
+.kchip.due:after{content:"🔁"; position:absolute; top:-6px; right:-4px; font-size:9px}
 .cta.sm{font-size:14px; padding:12px}
+.cta.rev{background:linear-gradient(135deg,var(--coral),#e0524f); color:#fff; font-size:13.5px; padding:12px; margin-bottom:8px; box-shadow:0 6px 18px rgba(255,122,92,.28)}
 .ate-rows{display:flex; flex-direction:column; gap:7px; margin-top:11px}
 .ate-row{display:flex; align-items:center; gap:11px; background:var(--bg2); border:1px solid var(--line); border-radius:11px; padding:11px; text-align:left}
 .ate-row:active{background:var(--card2)}
@@ -370,12 +374,15 @@ header{position:sticky; top:0; z-index:30; background:linear-gradient(180deg,rgb
 .acc-b.ko{background:rgba(255,107,107,.15); border-color:var(--red); color:#ffc6c6}
 
 /* chips de degrés (exo « retire les deux ») */
-.degchips{display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin:16px 0}
+.degchips{display:flex; gap:20px 6px; flex-wrap:wrap; justify-content:center; margin:16px 0}
 .dchip{position:relative; min-width:52px; padding:14px 8px 10px; border-radius:11px; background:var(--card); border:1px solid var(--line2); font-weight:700; font-size:15px; color:var(--ink)}
 .dc-n{position:absolute; top:3px; left:0; right:0; font-size:9px; color:var(--dim); font-weight:800}
 .dchip.sel{background:rgba(255,122,92,.18); border-color:var(--coral)}
 .dchip.bad{background:rgba(255,107,107,.16); border-color:var(--red); color:#ffc6c6; text-decoration:line-through}
 .dchip.keep{background:rgba(243,195,74,.14); border-color:var(--gold); color:var(--gold2)}
+.dchip.wrongpick{background:rgba(243,195,74,.14); border:2px dashed var(--coral); color:var(--gold2)}
+.dchip.wrongpick:after{content:"ton choix"; position:absolute; bottom:-15px; left:0; right:0; font-size:8.5px; color:var(--coral); font-weight:700}
+.degchips{padding-bottom:16px}
 
 /* écrans de victoire */
 .ex-win{text-align:center; padding-top:6px}
