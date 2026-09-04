@@ -150,6 +150,22 @@
         `<div class="hint">${disp(spec.tonic)} ${spec.mode} = ${dl(notes).join(" ")}</div>`;
     }
     if (k === "html") return htmlBlock(spec.id);
+    if (id === "phraseDemo") {
+      return `<div class="hint">Deux fois les mêmes notes. Seule la découpe change — écoute la différence.</div>
+        <table class="tbl"><tr><th>Ce qu'on fait</th><th>Ce que ça donne</th></tr>
+        <tr><td>Monter-descendre la gamme sans respirer</td><td>Un exercice. Rien à retenir.</td></tr>
+        <tr><td>3 notes · silence · les mêmes 3 notes · silence · les 3 mêmes en changeant la dernière</td><td>Une phrase. On l'attend, on la reconnaît, elle se résout.</td></tr></table>
+        <div class="btnrow"><button class="btn" data-seq="C:major">▶ La gamme (l'exercice)</button>
+        <button class="btn" data-drone="0">▶ Drone sur Do (pour essayer toi-même)</button></div>
+        <div class="hint">Contrainte à t'imposer : <b>4 notes maximum</b>, puis tu te tais aussi longtemps que tu as joué.</div>`;
+    }
+    if (id === "assaisonDemo") {
+      return `<table class="tbl"><tr><th>Outil</th><th>Comment</th><th>Règle</th></tr>
+        <tr><td><b>Chromatisme d'approche</b></td><td>Arrive sur ta note cible par le demi-ton en dessous (Ré♯ → Mi)</td><td>Bref, et résolu</td></tr>
+        <tr><td><b>Bend</b></td><td>Tire la corde vers la note cible — le chromatisme, en continu</td><td>Arrive juste, tiens la note d'arrivée</td></tr>
+        <tr><td><b>Dynamique</b></td><td>Aux doigts : la pulpe pour le rond, l'ongle pour le mordant</td><td>Varie, sinon tout s'aplatit</td></tr></table>
+        <div class="hint">Ordre de priorité pour progresser vite : <b>rythme</b> → <b>silence</b> → <b>son</b> → <b>notes</b>. C'est l'inverse de l'ordre dans lequel on apprend.</div>`;
+    }
     return "";
   }
 
@@ -307,7 +323,7 @@
   }
 
   /* ================= VUE : IMPRO ================= */
-  const IM = { mode: "chords", chords: [], root: "C", qual: "maj", keyTonic: "C", keyMinor: false, show: "penta", result: null };
+  const IM = { mode: "chords", chords: [], root: "C", qual: "maj", keyTonic: "C", keyMinor: false, show: "penta", modeIdx: 0, result: null };
   const PRESETS = [
     { n: "Pop I–V–vi–IV (en C)", c: [["C", "maj"], ["G", "maj"], ["A", "min"], ["F", "maj"]] },
     { n: "vi–IV–I–V (en G)", c: [["E", "min"], ["C", "maj"], ["G", "maj"], ["D", "maj"]] },
@@ -405,7 +421,8 @@
       <div class="res-block"><div class="rb-h">🎹 Sur le piano &nbsp;·&nbsp; 🎸 Sur ton manche</div>
         <div class="seg tiny"><button class="seg-b ${IM.show === "penta" ? "on" : ""}" data-imshow="penta">Penta</button>
         <button class="seg-b ${IM.show === "scale" ? "on" : ""}" data-imshow="scale">Gamme</button>
-        <button class="seg-b ${IM.show === "targets" ? "on" : ""}" data-imshow="targets">Cibles seules</button></div>
+        <button class="seg-b ${IM.show === "targets" ? "on" : ""}" data-imshow="targets">Cibles seules</button>
+        <button class="seg-b ${IM.show === "modes" ? "on" : ""}" data-imshow="modes">🌈 Modes</button></div>
         <div id="imDiag" data-majkey="${majKey}" data-relmin="${relMin}" data-minor="${minorFeel ? 1 : 0}">${diag}</div>
       </div>
       <div class="res-block tips"><div class="rb-h">🧠 Comment improviser là-dessus</div>
@@ -421,6 +438,87 @@
     </div>`;
   }
 
+
+  /* ================= LES MODES SUR LE MANCHE =================
+     Le point que rate presque tout le monde : en Do majeur, les 7 modes
+     utilisent EXACTEMENT les mêmes notes. Ce qui change, c'est le centre
+     et la note qu'on vise. On ne change pas de boîte, on change de cible.
+     `car` = index, dans la formule du mode, de la note caractéristique :
+     celle qui fait toute la couleur. C'est elle qu'il faut viser. */
+  const MODE_INFO = [
+    { deg:1, key:"ionian", fr:"Ionien", alias:"le majeur", qual:"maj7", car:6, carLbl:"7e majeure",
+      couleur:"Lumineux, posé, un peu sage.",
+      quand:"Sur l'accord de tonique. C'est le repos, la maison.",
+      recette:"Sers-t'en pour finir. La 7e majeure juste sous la tonique donne le côté « suspendu joli »." },
+    { deg:2, key:"dorian", fr:"Dorien", alias:"", qual:"min7", car:5, carLbl:"6e MAJEURE",
+      couleur:"Mineur, mais ouvert — jamais plaintif.",
+      quand:"Sur les vamps mineures (le ii, ou un morceau entier en mineur).",
+      recette:"C'est LE mineur du rock et du jazz. La 6e majeure est tout le secret : sans elle tu retombes dans le mineur triste." },
+    { deg:3, key:"phrygian", fr:"Phrygien", alias:"", qual:"min7", car:1, carLbl:"♭2",
+      couleur:"Sombre, tendu, espagnol ou metal.",
+      quand:"Sur le iii, ou en pédale sur un mineur qu'on veut rendre menaçant.",
+      recette:"Attaque la ♭2 juste au-dessus de la tonique, puis redescends dessus. C'est le son flamenco/metal en deux notes." },
+    { deg:4, key:"lydian", fr:"Lydien", alias:"", qual:"maj7", car:3, carLbl:"♯4",
+      couleur:"Majeur qui flotte, rêveur, son de cinéma.",
+      quand:"Sur le IV, ou sur un accord majeur qu'on veut faire léviter.",
+      recette:"La ♯4 est la note magique. Tiens-la, ne la résous pas tout de suite — c'est là qu'est le flottement." },
+    { deg:5, key:"mixolydian", fr:"Mixolydien", alias:"", qual:"dom7", car:6, carLbl:"♭7",
+      couleur:"Majeur bluesy, ça pousse en avant.",
+      quand:"Sur tout accord de 7 (dominante). Le son du rock et du blues.",
+      recette:"Le plus rentable avec le dorien. Majeur, mais la 7e descend d'un demi-ton : ça mord au lieu de sonner poli." },
+    { deg:6, key:"aeolian", fr:"Éolien", alias:"le mineur naturel", qual:"min7", car:5, carLbl:"♭6",
+      couleur:"Mineur triste, romantique, classique.",
+      quand:"Sur le vi, ou sur un morceau en mineur qu'on veut mélancolique.",
+      recette:"La ♭6 est ce qui le sépare du dorien. Une seule note d'écart entre « triste » et « cool » — écoute-la." },
+    { deg:7, key:"locrian", fr:"Locrien", alias:"", qual:"m7b5", car:4, carLbl:"♭5",
+      couleur:"Instable. Ne tient pas debout tout seul.",
+      quand:"Presque jamais en centre. Sur le vii m7♭5, en passage.",
+      recette:"À connaître pour comprendre le système, pas pour improviser dessus. Ne perds pas de temps ici." },
+  ];
+
+  function modesBlock(majKey) {
+    const sc = LC.majorScale(majKey);
+    const i = Math.max(0, Math.min(6, IM.modeIdx || 0));
+    const M = MODE_INFO[i];
+    const root = sc[i];
+    const notes = LC.modeScale(root, M.key);
+    const carNote = notes[M.car];
+    const chord = LC.chordLabel(root, M.qual, S.nameSystem);
+    const sp = keySpell(majKey);
+
+    const chips = MODE_INFO.map((m, k) => `<button class="mchip ${k === i ? "on" : ""}" data-immode="${k}">
+        <b>${disp(sc[k])} ${m.fr}</b><small>${LC.chordLabel(sc[k], m.qual, S.nameSystem)}</small></button>`).join("");
+
+    const leg = LCRender.legend([
+      { cls: "lg-fill", txt: "les notes du mode" },
+      { cls: "lg-dot", txt: "la note caractéristique (" + disp(carNote) + ")" },
+      { cls: "lg-root", txt: "le centre (" + disp(root) + ")" },
+    ]);
+
+    return `<div class="modes">
+      <div class="mchips">${chips}</div>
+      <div class="mcard">
+        <div class="mc-h"><b>${disp(root)} ${M.fr.toLowerCase()}</b>${M.alias ? ` <span class="mc-alias">— ${M.alias}</span>` : ""}
+          <span class="mc-chord">sur ${chord}</span></div>
+        <div class="mc-notes">${dl(notes).map((n, k) => `<span class="${k === M.car ? "car" : (k === 0 ? "rt" : "")}">${n}</span>`).join("")}</div>
+        <div class="mc-car">La note qui fait la couleur : <b>${disp(carNote)}</b> <span class="mc-deg">(${M.carLbl})</span></div>
+        <div class="mc-row"><span class="mc-lbl">Couleur</span>${M.couleur}</div>
+        <div class="mc-row"><span class="mc-lbl">Quand</span>${M.quand}</div>
+        <div class="mc-row tip"><span class="mc-lbl">Recette</span>${M.recette}</div>
+        <div class="btnrow">
+          <button class="btn" data-seq="${root}:${M.key}">▶ Écouter le mode</button>
+          <button class="btn" data-drone="${PC(root)}">▶ Drone sur ${disp(root)}</button>
+        </div>
+      </div>
+      <div class="diag-wrap"><div class="diag-lbl">🎸 Manche</div>${LCRender.fretboard({ frets: 12, highlight: pcsOf(notes), dots: [PC(carNote)], root: PC(root), spell: sp })}</div>
+      <div class="diag-wrap"><div class="diag-lbl">🎹 Piano</div>${LCRender.piano({ octaves: 2, fill: pcsOf(notes), dots: [PC(carNote)], root: PC(root), spell: sp })}</div>
+      ${leg}
+      <div class="mnote">⚠️ Les 7 modes ci-dessus utilisent <b>exactement les mêmes notes</b> que ${disp(majKey)} majeur.
+      Tu ne changes pas de boîte — tu changes de <b>centre</b> et de <b>note à viser</b>. C'est là qu'est le style,
+      pas dans une nouvelle gamme à apprendre.</div>
+    </div>`;
+  }
+
   function improDiagrams(majKey, relMin, rootTonic, minorFeel) {
     const scale = pcsOf(LC.majorScale(majKey));
     const penta = pcsOf(minorFeel ? LC.minorPenta(relMin) : LC.majorPenta(majKey));
@@ -429,6 +527,7 @@
     const sp = minorFeel ? minorSpell(relMin) : keySpell(majKey);
     const show = IM.show;
     let fill, dots;
+    if (show === "modes") return modesBlock(majKey);
     if (show === "penta") { fill = penta; dots = triad; }
     else if (show === "scale") { fill = scale; dots = triad; }
     else { fill = []; dots = triad; }
@@ -623,8 +722,9 @@
     $$("[data-imshow]").forEach((b) => b.onclick = () => {
       IM.show = b.dataset.imshow;
       const d = $("#imDiag"); if (d) { d.innerHTML = improDiagrams(d.dataset.majkey, d.dataset.relmin, null, d.dataset.minor === "1"); }
-      $$("[data-imshow]").forEach(x => x.classList.toggle("on", x === b)); wireAudioButtons($("#imResult"));
+      $$("[data-imshow]").forEach(x => x.classList.toggle("on", x === b)); wireAudioButtons($("#imResult")); wireModeChips();
     });
+    wireModeChips();
     // explorers
     $$("[data-ex-tonic]").forEach((b) => b.onclick = () => { EX.tonic = b.dataset.exTonic; render(); });
     $$("[data-ex-type]").forEach((b) => b.onclick = () => { EX.type = b.dataset.exType; render(); });
@@ -637,6 +737,19 @@
     // audio + circle
     wireAudioButtons($("#view"));
     wireCircle($("#view"));
+  }
+
+  /* Les pastilles de mode : on redessine le bloc seul (pas toute la vue),
+     pour ne pas renvoyer Thomas en haut de page à chaque clic. */
+  function wireModeChips() {
+    $$("[data-immode]").forEach((b) => b.onclick = () => {
+      IM.modeIdx = +b.dataset.immode;
+      const d = $("#imDiag");
+      if (d) {
+        d.innerHTML = improDiagrams(d.dataset.majkey, d.dataset.relmin, null, d.dataset.minor === "1");
+        wireAudioButtons(d); wireModeChips();
+      }
+    });
   }
 
   function wireAudioButtons(root) {

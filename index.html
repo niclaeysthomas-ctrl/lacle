@@ -405,6 +405,33 @@ header{position:sticky; top:0; z-index:30; background:linear-gradient(180deg,rgb
 .lg-sw.lg-fill{background:var(--gold)}
 .lg-sw.lg-dot{background:var(--teal)}
 .lg-sw.lg-root{background:var(--coral); border:2px solid #fff}
+
+/* ===== Les modes dans l'Impro ===== */
+.mchips{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:6px;margin:4px 0 12px}
+.mchip{background:var(--card2);border:1px solid transparent;border-radius:11px;padding:8px 6px;cursor:pointer;
+  color:var(--mut);font-family:inherit;text-align:center;line-height:1.25;transition:.13s}
+.mchip b{display:block;font-size:12.5px;font-weight:800;color:var(--ink)}
+.mchip small{display:block;font-size:10.5px;color:var(--dim);margin-top:2px}
+.mchip.on{background:var(--gold);border-color:var(--gold2)}
+.mchip.on b,.mchip.on small{color:#171a2c}
+.mcard{background:var(--card2);border-radius:14px;padding:14px 15px;margin-bottom:14px}
+.mc-h{font-size:16px;font-weight:800;display:flex;flex-wrap:wrap;align-items:baseline;gap:7px}
+.mc-alias{font-size:12px;color:var(--dim);font-weight:600}
+.mc-chord{margin-left:auto;font-size:12px;font-weight:800;color:var(--gold);
+  background:rgba(243,195,74,.13);padding:3px 9px;border-radius:7px}
+.mc-notes{display:flex;flex-wrap:wrap;gap:6px;margin:11px 0 9px}
+.mc-notes span{font-size:13px;font-weight:750;color:var(--mut);background:var(--card);padding:4px 9px;border-radius:7px}
+.mc-notes span.rt{background:var(--gold);color:#171a2c;font-weight:900}
+.mc-notes span.car{background:var(--teal);color:#06231f;font-weight:900}
+.mc-car{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px}
+.mc-car b{color:var(--teal)}
+.mc-deg{color:var(--dim);font-weight:600;font-size:12px}
+.mc-row{display:flex;gap:9px;font-size:12.5px;line-height:1.5;color:var(--mut);margin-top:6px}
+.mc-row.tip{color:var(--ink)}
+.mc-lbl{flex:0 0 60px;color:var(--dim);font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding-top:2px}
+.mnote{font-size:12.5px;line-height:1.6;color:var(--mut);background:rgba(157,123,255,.10);
+  border-left:3px solid var(--violet);border-radius:9px;padding:11px 13px;margin-top:12px}
+.mnote b{color:var(--ink)}
 </style>
 </head>
 <body>

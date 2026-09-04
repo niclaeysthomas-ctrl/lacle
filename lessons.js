@@ -11,6 +11,9 @@ const CHAPTERS = [
   { id: 5, emoji: "🎸", title: "Le manche", sub: "Toutes les notes, les notes cibles" },
   { id: 6, emoji: "🎯", title: "Tonalité & impro", sub: "Le grand final : improviser sur tout" },
   { id: 7, emoji: "🌈", title: "Les modes", sub: "Bonus : la couleur en plus" },
+  { id: 8, emoji: "🎼", title: "Les accords à 4 sons", sub: "Les 7es, la dominante, le ii–V–I" },
+  { id: 9, emoji: "🎺", title: "Le blues", sub: "La grille, et pourquoi elle viole les règles" },
+  { id: 10, emoji: "🗣️", title: "Le phrasé", sub: "Ce qui sépare jouer juste de jouer bien" },
 ];
 
 const LESSONS = [
@@ -285,6 +288,156 @@ const LESSONS = [
 <p class="tip">Les deux les plus rentables pour improviser : <b>dorien</b> (sur les vamps mineures) et <b>mixolydien</b> (sur les accords de dominante / le rock-blues). Commence par ceux-là.</p>`,
     demo: { kind: "modeDemo", tonic: "G", mode: "mixolydian" },
     quiz: { q: "Quel mode sonne « majeur bluesy » et va bien sur un accord de 7 (dominante) ?", choices: ["Lydien", "Phrygien", "Mixolydien", "Locrien"], answer: 2, explain: "Le mixolydien : majeur avec une 7e mineure. Le son du rock et du blues sur les accords de dominante." },
+  },
+
+  /* ===== CHAPITRE 7 (suite) — LES MODES EN PRATIQUE ===== */
+  {
+    id: "modecar", chap: 7, title: "La note qui fait la couleur", sub: "Une seule note sépare deux modes",
+    key: "Chaque mode a UNE note caractéristique. C'est elle qu'on vise — le reste est identique.",
+    body: `<p>Voici le malentendu qui bloque tout le monde : on croit qu'il faut apprendre sept nouvelles gammes. <b>Faux.</b> En Do majeur, les sept modes utilisent <b>exactement les mêmes sept notes</b>. Rien à apprendre en plus.</p>
+<p>Ce qui change, c'est le <b>centre</b> (la note qui sonne comme la maison) et surtout <b>une seule note</b> qui donne sa couleur au mode. On l'appelle la note caractéristique.</p>
+<p>Le cas le plus parlant : <b>dorien</b> et <b>éolien</b> (le mineur naturel) sont deux modes mineurs. Une seule note les sépare — la <b>6e</b>. Majeure en dorien, mineure en éolien. Un demi-ton, et tu passes de « cool, ouvert » à « triste, romantique ». C'est tout.</p>
+<p class="tip">Conséquence pratique énorme : pour sonner dorien, tu n'as pas à jouer une nouvelle gamme. Tu joues ta penta mineure habituelle et tu <b>ajoutes la 6e majeure</b> en la faisant entendre. Une note.</p>`,
+    demo: { kind: "modeDemo", tonic: "D", mode: "dorian" },
+    quiz: { q: "Quelle note sépare le dorien du mineur naturel ?", choices: ["La 2e", "La 6e", "La 7e", "La tierce"], answer: 1, explain: "La 6e : majeure en dorien, mineure en éolien. Un demi-ton d'écart, et toute la couleur change." },
+  },
+  {
+    id: "modequand", chap: 7, title: "Quel mode sur quel accord", sub: "Le mode suit l'accord, pas l'inverse",
+    key: "Chaque degré de la gamme porte son mode : ii → dorien, V → mixolydien, IV → lydien.",
+    body: `<p>On ne choisit pas un mode au hasard : il est <b>imposé par l'accord</b> qui joue. En Do majeur, chaque degré porte son mode, et ça tombe toujours pareil :</p>
+<p><b>I</b> Cmaj7 → ionien &nbsp;·&nbsp; <b>ii</b> Dm7 → <b>dorien</b> &nbsp;·&nbsp; <b>iii</b> Em7 → phrygien &nbsp;·&nbsp; <b>IV</b> Fmaj7 → <b>lydien</b> &nbsp;·&nbsp; <b>V</b> G7 → <b>mixolydien</b> &nbsp;·&nbsp; <b>vi</b> Am7 → éolien &nbsp;·&nbsp; <b>vii</b> Bm7♭5 → locrien.</p>
+<p>Les deux qui rapportent le plus : <b>dorien</b> (sur les vamps mineures — le mineur du rock et du jazz) et <b>mixolydien</b> (sur tout accord de 7 — le son du blues). Si tu n'en travailles que deux, prends ceux-là.</p>
+<p>Le locrien, lui, ne sert quasiment jamais comme centre : il est instable. Connais-le pour comprendre le système, ne perds pas de temps à improviser dessus.</p>
+<p class="tip">Va dans <b>🎯 Impro → 🌈 Modes</b> : entre tes accords, et l'app te sort les sept modes de ta tonalité avec le manche, l'accord correspondant et la note à viser.</p>`,
+    demo: { kind: "chords", tonic: "C" },
+    quiz: { q: "Un morceau tourne sur Dm7 pendant huit mesures. Quel mode ?", choices: ["Ré phrygien", "Ré dorien", "Ré lydien", "Ré locrien"], answer: 1, explain: "Ré dorien : le mode du 2e degré, et le mineur le plus utilisé en impro. Sa 6e majeure (le Si) est ce qui l'empêche de sonner plaintif." },
+  },
+  {
+    id: "modemanche", chap: 7, title: "Les modes sur le manche", sub: "Une seule boîte, sept centres",
+    key: "Tu ne déplaces pas ta main : tu changes la note sur laquelle tu te reposes.",
+    body: `<p>Sur la guitare, c'est encore plus simple qu'au piano — et c'est là que les guitaristes se compliquent la vie pour rien.</p>
+<p>Si tu connais tes positions de Do majeur sur le manche, <b>tu connais déjà les sept modes</b>. Les cases sont les mêmes. Ce qui change, c'est la note où tu <b>atterris</b>, celle que tu fais sonner longtemps, celle sur laquelle tu finis ta phrase.</p>
+<p>Joue la même position. Repose-toi sur le Ré → ça sonne dorien. Repose-toi sur le Sol → ça sonne mixolydien. Même main, même boîte, deux couleurs.</p>
+<p>C'est pour ça que « apprendre les modes » ne veut pas dire apprendre des positions : ça veut dire <b>entendre le centre</b> et savoir viser la note caractéristique.</p>
+<p class="tip">Exercice concret, aux doigts : mets un drone (l'app en a un dans l'Impro) sur Ré. Joue les notes de Do majeur. Fais sonner le Si (la 6e majeure) longuement. Tu viens de jouer du dorien sans rien apprendre de nouveau.</p>`,
+    demo: { kind: "fretboard", tonic: "D", show: "dorian" },
+    quiz: { q: "Tu joues les positions de Do majeur mais tu te reposes sur Sol. Ça sonne…", choices: ["Sol lydien", "Sol ionien", "Sol mixolydien", "Sol dorien"], answer: 2, explain: "Sol mixolydien : le 5e degré de Do. Mêmes notes, centre sur Sol, et la 7e (Fa naturel) donne la couleur bluesy." },
+  },
+
+  /* ===== CHAPITRE 8 — LES ACCORDS À 4 SONS ===== */
+  {
+    id: "septiemes", chap: 8, title: "Ajouter la 7e", sub: "Trois notes → quatre, et tout se colore",
+    key: "maj7 = doux/rêveur · m7 = velours · 7 (dominante) = tendu, veut se résoudre.",
+    body: `<p>Une triade, c'est 1-3-5. Ajoute une quatrième note, la <b>7e</b>, et l'accord passe de « juste » à « caractérisé ». C'est le saut qui sépare la pop de tout le reste.</p>
+<p>Trois familles à retenir, et elles suffisent pour 90 % de ce que tu joueras :</p>
+<p><b>maj7</b> (1-3-5-7) : Cmaj7 = Do Mi Sol <b>Si</b>. Doux, flottant, un peu rêveur. C'est l'accord de repos.<br>
+<b>m7</b> (1-♭3-5-♭7) : Dm7 = Ré Fa La <b>Do</b>. Velouté, sans tristesse appuyée. Le mineur moderne.<br>
+<b>7</b>, dite <b>dominante</b> (1-3-♭7) : G7 = Sol Si Ré <b>Fa</b>. Tendu. Il <b>tire</b> vers ailleurs.</p>
+<p>Le piège classique : Cmaj7 et C7 n'ont rien à voir. Le premier a un Si, le second un Si♭. Le premier se repose, le second pousse. Un demi-ton, deux fonctions opposées.</p>
+<p class="tip">Sur ta guitare aux doigts, les 7es sonnent souvent mieux <b>sans la quinte</b> : garde la fondamentale, la tierce et la 7e. Trois doigts, et l'accord est déjà complet à l'oreille.</p>`,
+    demo: { kind: "piano", tonic: "C", show: "major" },
+    quiz: { q: "Quelle note transforme un C majeur (Do Mi Sol) en C7 ?", choices: ["Si", "Si♭", "La", "Fa"], answer: 1, explain: "Si♭ : la 7e mineure. Avec Si naturel on obtient Cmaj7 (repos) ; avec Si♭, C7 (tension)." },
+  },
+  {
+    id: "dominante", chap: 8, title: "La dominante, le moteur", sub: "Pourquoi G7 veut rentrer à la maison",
+    key: "L'accord de 7 contient un triton — un intervalle instable qui exige une résolution.",
+    body: `<p>Pourquoi un G7 « veut » aller vers C ? Ce n'est pas une convention, c'est physique.</p>
+<p>Dans G7 (Sol Si Ré Fa), regarde <b>Si</b> et <b>Fa</b> : trois tons d'écart. Cet intervalle s'appelle le <b>triton</b>, et il est instable — l'oreille le vit comme une question suspendue.</p>
+<p>Et il se résout tout seul : le <b>Si</b> monte d'un demi-ton vers <b>Do</b>, le <b>Fa</b> descend d'un demi-ton vers <b>Mi</b>. Do et Mi : les deux premières notes de l'accord de C. La tension se dénoue exactement là.</p>
+<p>C'est le moteur de la musique occidentale depuis quatre siècles. Le V qui tombe sur le I. Une fois que tu l'entends, tu l'entends partout — dans Bach comme dans le blues.</p>
+<p class="tip">C'est aussi ton outil de composition le plus rentable : pour donner de l'élan avant n'importe quel accord, glisse la dominante qui le précède. Avant un Fa, mets un C7. Ça pousse.</p>`,
+    demo: { kind: "chords", tonic: "C" },
+    quiz: { q: "Dans G7, quelles deux notes forment le triton qui crée la tension ?", choices: ["Sol et Ré", "Si et Fa", "Sol et Fa", "Ré et Fa"], answer: 1, explain: "Si et Fa. Le Si monte vers Do, le Fa descend vers Mi : la résolution vers C majeur est déjà écrite dans l'accord." },
+  },
+  {
+    id: "iiVI", chap: 8, title: "Le ii–V–I", sub: "La phrase la plus utilisée de toute la musique",
+    key: "Dm7 → G7 → Cmaj7 : préparation, tension, résolution. Le socle du jazz et de la pop.",
+    body: `<p>Si tu ne dois retenir qu'un enchaînement, c'est celui-là. En Do : <b>Dm7 → G7 → Cmaj7</b>.</p>
+<p>Sa logique est un récit en trois temps. <b>Dm7</b> (le ii) prépare : il installe, sans tension. <b>G7</b> (le V) tend : le triton pose la question. <b>Cmaj7</b> (le I) résout : on est rentré.</p>
+<p>Regarde les basses : Ré → Sol → Do. Des quintes descendantes — le cercle des quintes, celui que tu connais déjà, en train de faire son travail.</p>
+<p>Ce qui rend cet enchaînement si précieux pour l'impro : il se déplace. Un morceau de jazz, c'est souvent une suite de ii–V–I dans différentes tonalités. Reconnaître le motif, c'est comprendre la moitié du morceau d'un coup d'œil.</p>
+<p class="tip">Dans <b>🎯 Impro</b>, le préréglage « ii–V–I (en C) » te sort les notes cibles accord par accord. Travaille-le lentement : trois accords, une phrase par accord, qui atterrit sur une note cible.</p>`,
+    demo: { kind: "threeCircles", tonic: "C" },
+    quiz: { q: "En Sol majeur, quel est le ii–V–I ?", choices: ["Am7 – D7 – Gmaj7", "Bm7 – E7 – Amaj7", "Em7 – A7 – Dmaj7", "Dm7 – G7 – Cmaj7"], answer: 0, explain: "Am7 – D7 – Gmaj7. Le ii de Sol est La, le V est Ré, le I est Sol. Les basses descendent de quinte en quinte." },
+  },
+  {
+    id: "guidetones", chap: 8, title: "Improviser sur les 7es", sub: "Deux notes suffisent : la 3 et la 7",
+    key: "La tierce et la 7e portent la couleur de l'accord. Vise-les, le reste est décoration.",
+    body: `<p>Sur un accord à quatre sons, toutes les notes ne pèsent pas pareil. La <b>fondamentale</b>, le bassiste la joue déjà. La <b>quinte</b> ne dit rien (elle est dans presque tous les accords). Restent la <b>tierce</b> et la <b>7e</b> : ce sont elles qui portent l'identité.</p>
+<p>On les appelle les <b>guide tones</b>. La tierce dit majeur ou mineur. La 7e dit repos ou tension. Avec ces deux notes seules, on reconnaît l'accord.</p>
+<p>La méthode qui fait immédiatement « pro » : sur un ii–V–I, joue <b>uniquement</b> les tierces et les 7es, en les reliant par le chemin le plus court. Dm7 (Fa, Do) → G7 (Si, Fa) → Cmaj7 (Mi, Si). Regarde : le Fa reste, puis descend sur Mi ; le Do descend sur Si. Presque pas de mouvement.</p>
+<p>C'est le secret des lignes qui « collent » aux accords au lieu de flotter au-dessus : tu ne cours pas après la gamme, tu suis deux notes qui bougent à peine.</p>
+<p class="tip">Exercice, lentement, aux doigts : joue le ii–V–I en boucle et ne joue QUE les guide tones. Quand ça coule, autorise-toi une note de passage entre deux. C'est déjà de l'impro.</p>`,
+    demo: { kind: "fretboard", tonic: "C", show: "triadTargets" },
+    quiz: { q: "Sur Dm7, quels sont les deux guide tones ?", choices: ["Ré et La", "Fa et Do", "Ré et Fa", "La et Do"], answer: 1, explain: "Fa (la tierce mineure) et Do (la 7e mineure). La fondamentale est au bassiste, la quinte ne caractérise rien." },
+  },
+
+  /* ===== CHAPITRE 9 — LE BLUES ===== */
+  {
+    id: "blues12", chap: 9, title: "Les 12 mesures", sub: "La grille que tout le monde connaît",
+    key: "I–I–I–I / IV–IV–I–I / V–IV–I–V : douze mesures, trois accords, tous en dominante.",
+    body: `<p>Le blues, c'est une grille de <b>douze mesures</b> qui tourne en boucle. En La : A7 partout, D7 au quatrième temps du récit, E7 pour relancer.</p>
+<p>Mesures 1-4 : <b>A7</b>. Mesures 5-6 : <b>D7</b>. Mesures 7-8 : <b>A7</b>. Mesure 9 : <b>E7</b>. Mesure 10 : <b>D7</b>. Mesure 11 : <b>A7</b>. Mesure 12 : <b>E7</b> (le « turnaround », qui te ramène au début).</p>
+<p>Le détail qui compte, et qui viole la théorie que tu viens d'apprendre : <b>les trois accords sont des dominantes</b>. En théorie, une tonalité n'a qu'une seule dominante (le V). Ici, I, IV et V sont tous en 7. C'est une anomalie assumée — et c'est précisément ce qui fait le son du blues.</p>
+<p class="tip">Cette grille est ton terrain d'essai pour tout le reste : mixolydien sur chaque accord, guide tones, blue notes. Douze mesures, trois accords, et de quoi travailler pendant des années.</p>`,
+    demo: { kind: "chords", tonic: "A" },
+    quiz: { q: "Qu'est-ce qui est anormal, théoriquement, dans un blues en La ?", choices: ["Il n'y a que 3 accords", "Le I, le IV et le V sont TOUS des accords de 7", "Il fait 12 mesures", "Il commence sur le IV"], answer: 1, explain: "Les trois sont des dominantes. Une tonalité n'en admet normalement qu'une (le V). Cette entorse est la signature sonore du blues." },
+  },
+  {
+    id: "bluesmix", chap: 9, title: "Majeur ET mineur en même temps", sub: "La friction qui fait le blues",
+    key: "On joue la penta mineure sur des accords majeurs. Le frottement est le style.",
+    body: `<p>Voilà l'autre anomalie, et la plus déroutante quand on vient de la théorie : sur un blues en La (accords <b>majeurs</b>), on improvise avec la <b>penta mineure</b> de La.</p>
+<p>Donc tu joues un Do naturel (tierce mineure) pendant que l'accord joue un Do♯ (tierce majeure). En théorie pure, c'est une faute. À l'oreille, c'est <b>le son du blues</b> — cette friction est exactement ce qu'on vient y chercher.</p>
+<p>Les grands joueurs font mieux : ils <b>mélangent</b> les deux pentas, majeure et mineure, et se déplacent de l'une à l'autre. La mineure pour mordre, la majeure pour chanter. C'est là qu'est le vocabulaire.</p>
+<p>Et la <b>blue note</b> (la ♭5, le Mi♭ en La) se joue toujours <b>en passage</b> — on la traverse, on ne s'y installe pas. Elle grince, c'est son rôle.</p>
+<p class="tip">Aux doigts, essaie ceci : joue la penta mineure de La, puis, sur le D7, glisse vers la penta majeure. Le simple fait de changer de couleur au changement d'accord suffit à faire raconter quelque chose à ton solo.</p>`,
+    demo: { kind: "fretboard", tonic: "A", show: "blues" },
+    quiz: { q: "Pourquoi joue-t-on la penta MINEURE sur un blues en accords majeurs ?", choices: ["Par erreur historique", "Parce que le frottement tierce mineure / tierce majeure EST le son du blues", "Parce que c'est plus facile", "Parce que les accords sont en fait mineurs"], answer: 1, explain: "Le frottement est le style. La tierce mineure jouée contre la tierce majeure de l'accord crée la tension caractéristique du blues." },
+  },
+  {
+    id: "bluesmanche", chap: 9, title: "Le blues sur le manche", sub: "Une position, trois accords",
+    key: "La penta mineure de la tonalité passe sur les 12 mesures. Puis on affine par accord.",
+    body: `<p>Bonne nouvelle pour la guitare : sur un blues en La, <b>la penta mineure de La passe sur les douze mesures</b>. Une seule position, aucun déplacement obligatoire. C'est pour ça que le blues est le premier terrain d'impro de tous les guitaristes.</p>
+<p>C'est le niveau 1, et il fonctionne. Le niveau 2 consiste à <b>suivre les accords</b> : sur le D7, viser les notes de D7 ; sur le E7, viser celles de E7. Le solo cesse de flotter et commence à coller.</p>
+<p>Le niveau 3, c'est le mixolydien de chaque accord — La mixolydien sur A7, Ré mixolydien sur D7. Tu retrouves ici tout le chapitre 7 : même boîte, centre qui se déplace.</p>
+<p class="tip">Ne saute pas les étages. Le niveau 1 pendant des semaines, en travaillant le <b>rythme</b> et les silences plutôt que les notes. Un blues joué avec trois notes bien placées bat un blues joué avec toute la gamme.</p>`,
+    demo: { kind: "fretboard", tonic: "A", show: "minpenta" },
+    quiz: { q: "Sur un blues en La, que peux-tu jouer sur les 12 mesures sans te tromper ?", choices: ["La penta majeure de Ré", "La penta mineure de La", "La gamme de Mi majeur", "Rien, il faut changer à chaque accord"], answer: 1, explain: "La penta mineure de La passe sur toute la grille. C'est le filet de sécurité — ensuite on affine accord par accord." },
+  },
+
+  /* ===== CHAPITRE 10 — LE PHRASÉ ===== */
+  {
+    id: "phrase", chap: 10, title: "Une phrase, pas une gamme", sub: "Le silence fait partie du solo",
+    key: "Joue court, respire, répète un motif. Personne ne retient une gamme montée-descendue.",
+    body: `<p>Tu connais maintenant assez de théorie pour ne plus jamais jouer de fausse note. Et pourtant ça peut encore sonner mal. Pourquoi ? Parce que <b>jouer juste et jouer bien sont deux choses différentes</b>.</p>
+<p>Le défaut numéro un de l'improvisateur qui débute : il joue <b>sans arrêt</b>. Des notes justes, en continu, sans respiration. À l'oreille, ça ne raconte rien — c'est un exercice, pas une phrase.</p>
+<p>Une phrase musicale fonctionne comme une phrase parlée : elle est <b>courte</b>, elle a un contour, et elle finit. Puis il y a un <b>silence</b>. Le silence n'est pas un trou à combler : c'est ce qui rend la phrase suivante audible.</p>
+<p>Et le procédé le plus puissant, celui que tout le monde sous-estime : la <b>répétition</b>. Joue un motif de trois notes. Rejoue-le. Rejoue-le une troisième fois en changeant la dernière note. Tu viens de créer une attente et de la satisfaire — c'est de la musique, pas de la gymnastique.</p>
+<p class="tip">Contrainte utile : impose-toi de jouer <b>quatre notes maximum</b>, puis de te taire pendant la même durée. C'est frustrant les cinq premières minutes, et c'est ce qui transforme un solo.</p>`,
+    demo: { kind: "html", id: "phraseDemo" },
+    quiz: { q: "Quel est le défaut le plus courant d'un solo de débutant ?", choices: ["Trop de fausses notes", "Jouer sans arrêt, sans silence ni motif", "Jouer trop lentement", "Rester dans la penta"], answer: 1, explain: "Le flux continu. Sans silence ni répétition de motif, même des notes parfaitement justes ne racontent rien." },
+  },
+  {
+    id: "tension", chap: 10, title: "Tension et résolution", sub: "Où atterrir, et quand",
+    key: "Note cible sur un temps fort = résolution. Note de passage sur un temps faible = tension.",
+    body: `<p>Tu sais déjà <b>quelles</b> notes viser. Reste le plus important : <b>quand</b>.</p>
+<p>La même note ne produit pas le même effet selon l'endroit où elle tombe. Une note cible posée sur un <b>temps fort</b> (le 1, le 3) sonne comme une arrivée. La même note glissée sur un contretemps devient un simple passage.</p>
+<p>D'où la règle qui structure tout le phrasé : <b>les notes de tension se placent sur les temps faibles, les notes de repos sur les temps forts</b>. C'est ce qui donne l'impression que le soliste « sait où il va ».</p>
+<p>Et l'inverse est un outil : poser volontairement une note de tension sur un temps fort, puis la résoudre juste après. Tu crées une attente d'une fraction de seconde et tu la satisfais. C'est exactement le mécanisme du triton dans G7, transposé à ta ligne mélodique.</p>
+<p class="tip">Test simple : enregistre-toi. Si tes phrases finissent au hasard, elles finiront sur des notes de passage et ça sonnera « inachevé ». Décide à l'avance sur quelle note tu atterris.</p>`,
+    demo: { kind: "fretboard", tonic: "C", show: "triadTargets" },
+    quiz: { q: "Où placer de préférence une note cible pour qu'elle sonne comme une arrivée ?", choices: ["Sur un temps faible", "Sur un temps fort", "N'importe où", "En dehors du tempo"], answer: 1, explain: "Sur un temps fort. C'est le placement rythmique, pas seulement le choix de la note, qui crée la sensation de résolution." },
+  },
+  {
+    id: "assaisonner", chap: 10, title: "Assaisonner", sub: "Chromatismes, bends, dynamique",
+    key: "Les notes hors gamme fonctionnent si elles sont brèves et résolues. Le son compte autant que la note.",
+    body: `<p>Dernier étage : les notes qui ne sont dans aucune gamme, et qui pourtant sonnent bien.</p>
+<p>Le <b>chromatisme d'approche</b> : pour atteindre une note cible, arrive dessus par le demi-ton juste en dessous. Tu veux le Mi ? Joue Ré♯ puis Mi. Le Ré♯ n'appartient à rien, il passe en une croche, et il rend l'arrivée inévitable à l'oreille. Règle unique : <b>bref, et résolu</b>.</p>
+<p>Le <b>bend</b> : sur la guitare, tirer la corde d'un demi-ton ou d'un ton vers une note cible. C'est le chromatisme, mais continu — et c'est ce qui donne une voix à ton jeu. Sur la tierce mineure du blues tirée vers la majeure, c'est tout le vocabulaire en un geste.</p>
+<p>La <b>dynamique</b>, enfin : jouer fort ou doux, attaquer près du chevalet ou près du manche. Aux doigts, tu as un contrôle que le médiator n'a pas — la pulpe pour le rond, l'ongle pour le mordant. Deux notes identiques jouées différemment racontent deux choses.</p>
+<p class="tip">Ordre de priorité si tu veux progresser vite : <b>rythme</b> d'abord, <b>silence</b> ensuite, <b>son</b> ensuite, <b>notes</b> en dernier. C'est exactement l'inverse de l'ordre dans lequel on apprend.</p>`,
+    demo: { kind: "html", id: "assaisonDemo" },
+    quiz: { q: "À quelle condition une note hors gamme sonne-t-elle bien ?", choices: ["Si elle est tenue longtemps", "Si elle est brève et résolue vers une note cible", "Si elle est jouée fort", "Jamais, il faut rester dans la gamme"], answer: 1, explain: "Brève et résolue. Un chromatisme d'approche dure une fraction de temps et débouche sur une note de l'accord — c'est ce qui le rend juste." },
   },
 ];
 
