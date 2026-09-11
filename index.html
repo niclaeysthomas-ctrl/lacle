@@ -432,7 +432,43 @@ header{position:sticky; top:0; z-index:30; background:linear-gradient(180deg,rgb
 .rules li{margin:8px 0}
 .rules b{color:var(--gold2)}
 
+/* ---------- SÉANCE DU JOUR ---------- */
+.se-card{background:linear-gradient(150deg,#1d2a4c,#161b36); border:1px solid rgba(57,214,192,.35); border-radius:var(--r); padding:16px; margin:16px 0; box-shadow:var(--shadow)}
+.se-h{display:flex; align-items:flex-start; gap:10px; margin-bottom:11px}
+.se-title{font-size:18px; font-weight:800}
+.se-sub{font-size:11.5px; color:var(--dim); margin-top:3px; line-height:1.45}
+.se-count{margin-left:auto; font-size:20px; font-weight:800; color:var(--teal); font-variant-numeric:tabular-nums}
+.se-card .prog-bar span{background:linear-gradient(90deg,var(--teal),var(--gold))}
+.se-rows{display:flex; flex-direction:column; gap:7px; margin-top:12px}
+.se-row{display:flex; align-items:center; gap:11px; background:var(--bg2); border:1px solid var(--line); border-radius:12px; padding:11px; text-align:left; transition:.12s}
+.se-row:active{transform:scale(.99)}
+.se-row.cur{border-color:var(--teal); background:rgba(57,214,192,.07)}
+.se-row.ok{opacity:.6}
+.se-n{width:26px; height:26px; border-radius:50%; display:grid; place-items:center; font-size:12px; font-weight:800; background:var(--card2); color:var(--mut); flex:0 0 auto}
+.se-row.cur .se-n{background:var(--teal); color:#06231f}
+.se-row.ok .se-n{background:rgba(70,211,138,.18); color:var(--grn)}
+.se-b{flex:1; min-width:0}
+.se-cat{display:block; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--dim)}
+.se-t{display:block; font-weight:700; font-size:14px; margin-top:2px}
+.se-w{display:block; font-size:11.5px; color:var(--mut); margin-top:2px; line-height:1.4}
+.se-week{display:flex; align-items:flex-end; gap:7px; margin-top:13px; font-size:10px; color:var(--dim); font-weight:700}
+.se-d{display:flex; flex-direction:column; align-items:center; gap:3px}
+.se-dot{width:15px; height:15px; border-radius:4px; background:var(--bg2); border:1px solid var(--line)}
+.se-dot.part{background:rgba(57,214,192,.35); border-color:transparent}
+.se-dot.full{background:var(--teal); border-color:transparent}
+.se-d.today{color:var(--gold2)}
+.se-streak{margin-left:auto; font-size:11.5px; font-weight:600; color:var(--mut)}
+.se-streak b{color:var(--gold2)}
+.jam-t{font-size:48px; font-weight:800; text-align:center; font-variant-numeric:tabular-nums; color:var(--teal); margin:16px 0 4px}
+#jamFb .fb-ok{margin-bottom:6px}
+
 /* ---------- legend ---------- */
+.fq-leg{margin-top:2px}
+.fq-sw{width:13px; height:13px; border-radius:50%; display:inline-block; box-sizing:border-box}
+.fq-sw.pen{background:#4b4270; border:1.5px solid #7a6fb0}
+.fq-sw.ok{background:var(--grn); border:1.5px solid #0d3324}
+.fq-sw.ko{background:var(--red); border:1.5px solid #3a1010}
+.fq-sw.lit{background:var(--gold); border:1.5px solid var(--coral)}
 .legend{display:flex; gap:14px; flex-wrap:wrap; justify-content:center; margin:8px 0 2px; font-size:11.5px; color:var(--mut)}
 .lg{display:flex; align-items:center; gap:5px}
 .lg-sw{width:13px; height:13px; border-radius:50%; display:inline-block}

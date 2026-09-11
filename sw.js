@@ -1,5 +1,5 @@
 /* LA CLÉ — service worker (offline-first) */
-const CACHE = "lacle-v5-viser";
+const CACHE = "lacle-v6-seance";
 const ASSETS = [
   "./",
   "./index.html",

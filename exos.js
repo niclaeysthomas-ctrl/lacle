@@ -35,6 +35,13 @@ const LCEx = (function () {
   const noteName = (pc) => { pc = ((pc % 12) + 12) % 12; return SPELL ? SPELL[pc] : A.disp(LC.SHARP[pc]); };
   function sigShort(t) { const s = LC.keySignature(t); return s.count ? s.count + " " + (s.type === "#" ? "♯" : "♭") : "aucune"; }
 
+  // Légendes du manche-quiz : chaque couleur à l'écran doit dire ce qu'elle est.
+  const LEG_PENTA  = { pen: "ta penta", ok: "juste", ko: "ton choix (faux)", lit: "la bonne note, partout" };
+  const LEG_CHASSE = { pen: "ta penta — tes cibles sont dedans", ok: "trouvée", ko: "erreur" };
+
+  // Ligne de la séance du jour en cours (null = exo lancé depuis l'Atelier).
+  let SLOT = null;
+
   /* ============================ ÉTAT / RECORDS ============================ */
   function st() {
     const S = A.S;
@@ -92,7 +99,7 @@ const LCEx = (function () {
       <div class="sheet-body" id="exBody"></div></div>`);
     $("#exQuit").onclick = closeSheet;
   }
-  function closeSheet() { stopT(); A.closeOverlay(); A.render(); }
+  function closeSheet() { stopT(); SLOT = null; A.closeOverlay(); A.render(); }
   /* `keep` = on répond à l'intérieur d'une même question (on marque une case,
      on affiche un retour) : il ne faut alors PAS renvoyer l'écran en haut ni
      ramener le manche au sillet — sinon on perd la case qu'on vient de toucher. */
@@ -107,6 +114,8 @@ const LCEx = (function () {
     if (neuf && left) neuf.scrollLeft = left;
     b.scrollTop = top;
     A.wireAudio(b);
+    // Tous les écrans de fin passent par .ex-win : c'est là que la séance coche.
+    if (SLOT && html.indexOf('class="ex-win"') !== -1) seanceMark(SLOT);
   }
   function on(sel, fn) { $$(sel, $("#exBody")).forEach((el) => { el.onclick = () => fn(el); }); }
   function btn(id, fn) { const b = $("#" + id); if (b) b.onclick = fn; }
@@ -212,9 +221,10 @@ const LCEx = (function () {
   function wire() {
     const v = $("#view");
     if (!v) return;
-    $$("[data-gkey]", v).forEach((b) => { b.onclick = () => startKey(b.dataset.gkey); });
-    $$("[data-pkey]", v).forEach((b) => { b.onclick = () => startPenta(b.dataset.pkey); });
-    $$("[data-ex]", v).forEach((b) => { b.onclick = () => startEx(b.dataset.ex); });
+    $$("[data-gkey]", v).forEach((b) => { b.onclick = () => { SLOT = null; startKey(b.dataset.gkey); }; });
+    $$("[data-pkey]", v).forEach((b) => { b.onclick = () => { SLOT = null; startPenta(b.dataset.pkey); }; });
+    $$("[data-ex]", v).forEach((b) => { b.onclick = () => { SLOT = null; startEx(b.dataset.ex); }; });
+    $$("[data-seance]", v).forEach((b) => { b.onclick = () => lancerSeance(b.dataset.seance); });
   }
   function startEx(id) {
     if (id === "eclair-gammes") return runEclair("gammes", "⚡ Éclair · gammes", qGammes);
@@ -922,7 +932,7 @@ const LCEx = (function () {
         <div class="dq sm">Tu es en <b>${A.disp(q.tonic)} ${q.type === "min" ? "mineur" : "majeur"}</b>. Voici ta ${nomPenta}.<br>
           Touche <b>${q.role.nom}</b>${q.hors ? "" : ` <span class="deg-badge">${q.role.deg}</span>`}
           <span class="dq-hint">${q.hors ? "elle n'est pas allumée : c'est une note qu'on AJOUTE" : "n'importe laquelle des positions compte"}</span></div>
-        ${LCRender.fretQuiz({ frets: 12, marks: marks, labels: labels })}
+        ${LCRender.fretQuiz({ frets: 12, marks: marks, labels: labels, legend: LEG_PENTA })}
         <div class="dq-fb">${fb}</div>`, keep);
       if (!locked) on("[data-fret]", tap);
       btn("nx", next);
@@ -1437,7 +1447,9 @@ const LCEx = (function () {
       for (let s = 0; s < 6; s++) for (let f = 0; f <= 12; f++) {
         const pc = LC.fretPc(s, f);
         if (pc === curPc) all.push(s + ":" + f);
-        else if (lv === 1 && pentaPcs.indexOf(pc) >= 0) marks[s + ":" + f] = "pen";
+        // Niveau 1 : TOUTE la penta s'allume, cibles comprises. Les exclure
+        // (ancien code) laissait des trous pile là où était la réponse.
+        if (lv === 1 && pentaPcs.indexOf(pc) >= 0) marks[s + ":" + f] = "pen";
       }
       tHunt = Date.now();
       draw("");
@@ -1448,7 +1460,7 @@ const LCEx = (function () {
         ${splits.length ? `<div class="splits">${splits.map((s) => `<span class="sp">${s.nom} · ${fmtT(s.ms)}</span>`).join("")}</div>` : ""}
         <div class="dq sm">En <b>${A.disp(key)} ${minor ? "mineur" : "majeur"}</b> — touche <b>${nomOf(nom)}</b> <span class="deg-badge">${degOf(nom)}</span>
           <span class="dq-hint">il y en a ${all.length} entre la case 0 et la 12</span></div>
-        ${LCRender.fretQuiz({ frets: 12, marks: marks, labels: labels })}
+        ${LCRender.fretQuiz({ frets: 12, marks: marks, labels: labels, legend: LEG_CHASSE })}
         <div class="dq-fb">${fb}</div>`, keep);
       if (!locked) on("[data-fret]", tap);
     }
@@ -1587,7 +1599,7 @@ const LCEx = (function () {
     function draw(fb, keep) {
       const body = q.type === "role"
         ? `<div class="dq-choices">${q.choices.map((c) => `<button class="dq-c" data-v="${c}">${c}</button>`).join("")}</div>`
-        : LCRender.fretQuiz({ frets: 12, marks: marks, labels: labels });
+        : LCRender.fretQuiz({ frets: 12, marks: marks, labels: labels, legend: LEG_PENTA });
       paint(`${entete()}<div class="dq sm">${consigne()}</div>${body}<div class="dq-fb">${fb}</div>`, keep);
       if (!locked) {
         if (q.type === "role") on(".dq-c", (el) => answerRole(el));
@@ -1725,7 +1737,7 @@ const LCEx = (function () {
           <div class="rc-b">C'est elle qui explique pourquoi un blues joue des accords <b>7 partout</b> (I7, IV7, V7) alors qu'aucune tonalité majeure ne contient ça. Sur le I7, elle est à la fois dans l'accord et « bleue ».</div></div>
 
         <div class="ate-sub">Où elle se trouve · penta mineure de ${A.disp("A")}</div>
-        ${LCRender.fretQuiz({ frets: 12, marks: marks, labels: labels })}
+        ${LCRender.fretQuiz({ frets: 12, marks: marks, labels: labels, legend: { pen: "penta mineure", lit: "la blue note ♭5" } })}
         <div class="hint">La ♭5 (en or) se glisse toujours <b>juste avant la 5</b>. Dans une boîte de penta, tu la reconnais à ça : c'est la seule case qui vient <b>coller</b> deux notes voisines sur la même corde.</div>
 
         <div class="ate-sub">Ce qui tue une blue note</div>
@@ -1781,7 +1793,7 @@ const LCEx = (function () {
         if (q.kind === "tap") {
           paint(`${head}<div class="dq sm">Penta mineure de <b>${A.disp(q.tonic)}</b>. Touche la <b>blue note</b> <span class="deg-badge">♭5</span>
             <span class="dq-hint">elle n'est pas allumée : c'est la note qu'on AJOUTE, juste avant la 5</span></div>
-            ${LCRender.fretQuiz({ frets: 12, marks: marks, labels: labels })}<div class="dq-fb">${fb}</div>`, keep);
+            ${LCRender.fretQuiz({ frets: 12, marks: marks, labels: labels, legend: { pen: "penta mineure", ok: "juste", ko: "ton choix (faux)", lit: "la ♭5, partout" } })}<div class="dq-fb">${fb}</div>`, keep);
           if (!locked) on("[data-fret]", tap);
         } else {
           paint(`${head}<div class="dq sm">L'accord est <b>${chordName(q.root, q.qual)}</b>. Tu tombes sur sa <b>${q.deg}</b>.<br>Tu peux la <b>tenir</b> ?</div>
@@ -1859,5 +1871,231 @@ const LCEx = (function () {
       </div></div>`;
   }
 
-  return { init: init, view: view, wire: wire };
+  /* =========================================================================
+     SÉANCE DU JOUR — cinq lignes, figées pour la journée.
+     Réviser → voir les fonctions sur le manche → viser → jouer → comprendre.
+     Une ligne ne se coche que si l'exo lancé DEPUIS la séance atteint son
+     écran de fin (SLOT) : ouvrir puis quitter ne compte pas, et un exo fait
+     dans l'Atelier ne coche pas une ligne à la place d'une autre.
+     ========================================================================= */
+  const SE_N = 5;
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const fmtJour = (d) => d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+  const numJour = (s) => { const p = s.split("-").map(Number); return Math.floor(Date.UTC(p[0], p[1] - 1, p[2]) / 864e5); };
+
+  // Une règle par jour (rotation sur 7 jours). Priorités du phrasé :
+  // rythme → silence → cible → notes.
+  const JAM_RULES = [
+    { t: "atterris sur la tierce", c: (x) => `Chaque phrase <b>se termine sur la tierce</b> (${x.n3}). Pas sur la tonique aujourd'hui : la tierce chante, la tonique ferme la porte.` },
+    { t: "4 notes, puis silence", c: () => `Jamais plus de <b>4 notes</b> d'affilée, puis tu te tais <b>aussi longtemps que tu as joué</b>. Le silence fait partie de la phrase : c'est lui qui la rend audible.` },
+    { t: "une seule corde", c: (x) => `Tout sur <b>une seule corde</b> (celle de ${x.sol}, puis celle de ${x.si}). Tu vois la penta à l'horizontale, là où la boîte t'enfermait.` },
+    { t: "le rythme d'abord", c: (x) => `Trois notes, pas une de plus : <b>${x.n1}</b>, <b>${x.n3}</b>, <b>${x.n5}</b>. Cinq minutes à ne changer <b>que le rythme</b> : longues, courtes, en avance, en retard.` },
+    { t: "question / réponse", c: (x) => `Toujours par paires : une phrase qui <b>monte</b> et reste en suspens (sur la ${x.d7}, ${x.n7}), puis une qui <b>descend</b> et se pose sur la tonique (${x.n1}).` },
+    { t: "approche par le demi-ton", c: (x) => `Arrive sur tes cibles (${x.n3}, ${x.n5}) par la <b>case juste en dessous</b> — hors penta — puis <b>tiens</b> la cible. La fausse note devient une tension qui se résout.` },
+    { t: "trois couleurs", c: (x) => `1 min 30 à ne viser que la <b>quinte</b> (${x.n5}), 1 min 30 que la <b>tierce</b> (${x.n3}), 2 min que la <b>${x.d7}</b> (${x.n7}). Écoute ce que chacune fait sur le drone.` },
+  ];
+
+  function seance() {
+    const S = A.S, d = fmtJour(new Date());
+    if (!S.seance || S.seance.date !== d) {
+      const hist = (S.seance && S.seance.hist) || {};
+      const cles = Object.keys(hist).sort();
+      while (cles.length > 120) delete hist[cles.shift()];
+      S.seance = { date: d, plan: planDuJour(numJour(d)), done: {}, hist: hist, bonus: false };
+      A.save();
+    }
+    return S.seance;
+  }
+
+  function planDuJour(dn) {
+    const plan = [];
+    // 1 · Réviser — ce qui est dû passe avant tout le reste
+    const gDue = CIRCLE.filter((t) => keyLvl(t) === 2 && estDu("g:" + t));
+    const pDue = CIRCLE.filter((t) => pentaOK(t) && estDu("p:" + t));
+    const gNext = CIRCLE.find((t) => keyLvl(t) < 2);
+    const pNext = CIRCLE.find((t) => !pentaOK(t));
+    const gSues = CIRCLE.filter((t) => keyLvl(t) === 2).length;
+    if (gDue.length) plan.push({ id: "gkey:" + gDue[0], r: "due" });
+    else if (pDue.length) plan.push({ id: "pkey:" + pDue[0], r: "due" });
+    else if (pNext && gSues >= 3 && (!gNext || dn % 2)) plan.push({ id: "pkey:" + pNext });
+    else if (gNext) plan.push({ id: "gkey:" + gNext });
+    else plan.push({ id: ["eclair-gammes", "eclair-pentas", "eclair-manche"][dn % 3] });
+    // 2 · Manche — la chasse, au premier niveau non validé
+    plan.push({ id: "chasse" + ([1, 2, 3].find((k) => !isDone("ch:" + k)) || 3) });
+    // 3 · Viser — rôles de la penta → l'accord bouge → blue notes
+    const VISER = [["penta1", "pf:1"], ["penta2", "pf:2"], ["penta3", "pf:3"], ["penta4", "pf:4"],
+      ["bouge1", "bg:1"], ["bouge2", "bg:2"], ["blue", "bl:drill"]];
+    const v = VISER.find((x) => !isDone(x[1]));
+    plan.push({ id: v ? v[0] : ["bouge2", "penta4", "blue"][dn % 3] });
+    // 4 · Jouer — tonalité et règle du jour (5 pas sur le cercle chaque jour)
+    const t = CIRCLE[(dn * 5) % 12], m = (dn + Math.floor(dn / 12)) % 2 === 1;
+    plan.push({ id: "jam", t: m ? LC.relativeMinor(t) : t, m: m, rule: dn % JAM_RULES.length });
+    // 5 · Comprendre — la prochaine leçon, sinon la tonalité
+    const L = typeof LESSONS !== "undefined" ? LESSONS.find((l) => !A.S.done[l.id]) : null;
+    if (L) plan.push({ id: "lesson:" + L.id });
+    else plan.push({ id: "key" + ([1, 2, 3, 4].find((k) => !isDone("kf:" + k)) || [3, 4][dn % 2]) });
+    return plan;
+  }
+
+  // Titres calculés à l'affichage (pas figés) : ils suivent Do-Ré-Mi ↔ C-D-E.
+  function infoLigne(p) {
+    const id = p.id, k = +id.replace(/\D/g, "");
+    if (id.indexOf("gkey:") === 0) {
+      const t = id.slice(5);
+      return { e: "🔁", cat: "Réviser", min: 3,
+        titre: A.disp(t) + " majeur · " + (p.r === "due" ? "révision" : isDone("g:" + t + ":formula") ? "par cœur" : "la construire"),
+        why: p.r === "due" ? "Due aujourd'hui. Une faute, et elle redescend à « construite »." : "Le chantier des 12 gammes : une de plus, jusqu'au réflexe." };
+    }
+    if (id.indexOf("pkey:") === 0) {
+      return { e: "🔁", cat: "Réviser", min: 3, titre: "Penta de " + A.disp(id.slice(5)) + (p.r === "due" ? " · révision" : ""),
+        why: p.r === "due" ? "Due aujourd'hui : ce qu'on ne révise pas s'efface." : "La gamme moins ses deux notes qui frottent, puis sa jumelle mineure." };
+    }
+    if (id.indexOf("eclair-") === 0) {
+      return { e: "⚡", cat: "Réviser", min: 2, titre: "Éclair · " + id.slice(7), why: "Tout est acquis : on garde l'automatisme au chrono." };
+    }
+    if (id.indexOf("chasse") === 0) {
+      return { e: "⏱", cat: "Manche", min: 4, titre: "La chasse · niveau " + k + " · " + CHASSE_LV[k - 1][0],
+        why: isDone("ch:" + k) ? "Niveau validé : bats ton record (" + recTxt("chasse:" + k, "errs") + ")." : "Toniques, tierces, quintes sans compter : le réflexe qui libère l'impro." };
+    }
+    if (id.indexOf("penta") === 0) {
+      return { e: "🎯", cat: "Viser", min: 5, titre: "Rôles de la penta · niveau " + k + " · " + PENTA_LV[k - 1][0], why: "Savoir ce que fait chaque note, pas seulement où elle est." };
+    }
+    if (id.indexOf("bouge") === 0) {
+      return { e: "🔄", cat: "Viser", min: 5, titre: "L'accord bouge · " + BOUGE_LV[k - 1][0], why: "Même penta, l'accord change : ce que devient chaque note." };
+    }
+    if (id === "blue") return { e: "💧", cat: "Viser", min: 5, titre: "Les blue notes", why: "Les trois, où elles sont, et ce qui les tue." };
+    if (id === "jam") {
+      return { e: "🎤", cat: "Jouer", min: 5, titre: "Drone en " + A.disp(p.t) + (p.m ? " mineur" : " majeur") + " · " + JAM_RULES[p.rule].t,
+        why: "Guitare en main, chrono de 5 min. La théorie ne compte que quand elle passe dans les doigts." };
+    }
+    if (id.indexOf("lesson:") === 0) {
+      const L = LESSONS.find((l) => l.id === id.slice(7)) || { title: "Leçon", sub: "" };
+      return { e: "📖", cat: "Comprendre", min: 5, titre: L.title, why: L.sub };
+    }
+    if (id.indexOf("key") === 0) {
+      return { e: "🧭", cat: "Comprendre", min: 5, titre: "Deviner la tonalité · niveau " + k + " · " + KEY_LV[k - 1][0], why: KEY_LV[k - 1][1] };
+    }
+    return { e: "•", cat: "", min: 0, titre: id, why: "" };
+  }
+
+  function semaine(se) {
+    const jours = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      jours.push({ c: se.hist[fmtJour(d)] || 0, l: "DLMMJVS"[d.getDay()], today: i === 0 });
+    }
+    // série de séances COMPLÈTES ; tant qu'aujourd'hui n'est pas fini, elle tient jusqu'à hier
+    let serie = 0;
+    const d = new Date();
+    if ((se.hist[fmtJour(d)] || 0) < SE_N) d.setDate(d.getDate() - 1);
+    while ((se.hist[fmtJour(d)] || 0) >= SE_N) { serie++; d.setDate(d.getDate() - 1); }
+    return { jours: jours, serie: serie };
+  }
+
+  function seanceCard() {
+    const se = seance();
+    const fait = se.plan.filter((p) => se.done[p.id]).length;
+    const cur = se.plan.find((p) => !se.done[p.id]);
+    let min = 0;
+    const rows = se.plan.map((p, i) => {
+      const I = infoLigne(p), ok = !!se.done[p.id];
+      min += I.min;
+      const attr = p.id.indexOf("lesson:") === 0 ? `data-lesson="${p.id.slice(7)}"` : `data-seance="${p.id}"`;
+      return `<button class="se-row${ok ? " ok" : ""}${p === cur ? " cur" : ""}" ${attr}>
+        <span class="se-n">${ok ? "✓" : i + 1}</span>
+        <span class="se-b"><span class="se-cat">${I.e} ${I.cat} · ${I.min} min</span>
+          <span class="se-t">${I.titre}</span><span class="se-w">${I.why}</span></span>
+        <span class="l-arrow">›</span></button>`;
+    }).join("");
+    const wk = semaine(se);
+    return `<div class="se-card">
+      <div class="se-h"><div><div class="se-title">📅 Séance du jour</div>
+        <div class="se-sub">≈ ${min} min, dans l'ordre. Une ligne se coche quand l'exo lancé d'ici arrive au bout — pas avant.</div></div>
+        <div class="se-count">${fait}/${se.plan.length}</div></div>
+      <div class="prog-bar"><span style="width:${Math.round(fait / se.plan.length * 100)}%"></span></div>
+      ${fait === se.plan.length ? `<div class="fb-ok">✅ Séance bouclée, +30 XP. Celle de demain sera différente — celle-ci ne bouge plus.</div>` : ""}
+      <div class="se-rows">${rows}</div>
+      <div class="se-week">${wk.jours.map((j) => `<span class="se-d${j.today ? " today" : ""}"><span class="se-dot${j.c >= SE_N ? " full" : j.c ? " part" : ""}"></span>${j.l}</span>`).join("")}
+        <span class="se-streak">🔥 <b>${wk.serie}</b> j de séance complète</span></div>
+    </div>`;
+  }
+
+  function seanceMark(id) {
+    const se = seance();
+    if (se.done[id] || !se.plan.some((p) => p.id === id)) return;
+    se.done[id] = true;
+    const n = se.plan.filter((p) => se.done[p.id]).length;
+    se.hist[se.date] = n;
+    const complete = n === se.plan.length && !se.bonus;
+    if (complete) se.bonus = true;
+    A.save();
+    if (complete) A.earnXP(30);
+  }
+
+  function lancerSeance(id) {
+    SLOT = id;
+    if (id.indexOf("gkey:") === 0) return startKey(id.slice(5));
+    if (id.indexOf("pkey:") === 0) return startPenta(id.slice(5));
+    if (id === "jam") return exJam();
+    startEx(id);
+  }
+
+  /* ---- 4 · JOUER : 5 minutes sur un drone, une règle, un chrono ---- */
+  function exJam() {
+    const p = seance().plan.find((x) => x.id === "jam");
+    if (!p) return;
+    const R = JAM_RULES[p.rule % JAM_RULES.length], tonic = p.t, minor = p.m;
+    openSheet("🎤 Jouer · 5 min");
+    useSpell(tonic, minor);
+    const tpc = PCS(tonic);
+    const pcs = (minor ? LC.minorPenta(tonic) : LC.majorPenta(tonic)).map(PCS);
+    const nm = (s) => noteName(tpc + s);
+    const x = { n1: nm(0), n3: nm(minor ? 3 : 4), n5: nm(7), n7: nm(minor ? 10 : 9), d3: minor ? "♭3" : "3", d7: minor ? "♭7" : "6",
+      sol: A.disp("G"), si: A.disp("B") };
+    const DUREE = 5 * 60 * 1000;
+    let reste = DUREE, fin = 0, iv = null;
+    const mmss = (ms) => { const s = Math.ceil(ms / 1000); return Math.floor(s / 60) + ":" + pad2(s % 60); };
+
+    paint(`<div class="ex-intro big">Tonalité du jour : <b>${A.disp(tonic)} ${minor ? "mineur" : "majeur"}</b>. Guitare en main, drone lancé, cinq minutes.</div>
+      <div class="role-card"><div class="rc-h">La règle du jour · ${R.t}</div><div class="rc-b">${R.c(x)}</div></div>
+      <div class="jam-t" id="jamT">${mmss(reste)}</div>
+      <div class="btnrow center"><button class="btn primary" id="jamGo">▶ Drone + chrono</button>
+        <button class="btn" id="jamPause" hidden>⏸ Pause</button></div>
+      <div id="jamFb">${seance().done.jam ? `<div class="fb-ok">✅ Déjà fait aujourd'hui. Rejoue autant que tu veux.</div>` : ""}</div>
+      <div class="ate-sub">Ta penta · ${x.n1} ${minor ? "mineur" : "majeur"}</div>
+      ${LCRender.fretboard({ frets: 12, highlight: pcs, dots: [(tpc + (minor ? 3 : 4)) % 12, (tpc + 7) % 12], root: tpc, spell: SPELL })}
+      ${LCRender.legend([{ cls: "lg-fill", txt: "penta" }, { cls: "lg-dot", txt: "cibles : " + x.d3 + " et 5" }, { cls: "lg-root", txt: "tonique" }])}
+      <div class="hint">La ligne ne se coche qu'à <b>0:00</b>. Pause permise. Laisser tourner le chrono sans jouer ne trompe que toi.</div>`);
+
+    function stop() { if (iv) { clearInterval(iv); iv = null; } LC.audio.droneStop(); }
+    function tick() {
+      if (!$("#jamT")) { stop(); return; }         // feuille fermée autrement
+      reste = Math.max(0, fin - Date.now());
+      $("#jamT").textContent = mmss(reste);
+      if (reste <= 0) termine();
+    }
+    function go() {
+      LC.audio.resume(); LC.audio.drone([36 + tpc, 48 + tpc, 55 + tpc]);
+      fin = Date.now() + reste;
+      iv = setInterval(tick, 250);
+      $("#jamGo").hidden = true; $("#jamPause").hidden = false;
+    }
+    function pause() {
+      stop(); reste = Math.max(0, fin - Date.now());
+      $("#jamGo").textContent = "▶ Reprendre"; $("#jamGo").hidden = false; $("#jamPause").hidden = true;
+    }
+    function termine() {
+      stop(); reste = DUREE;
+      $("#jamT").textContent = mmss(reste);
+      $("#jamGo").textContent = "↻ Encore 5 min"; $("#jamGo").hidden = false; $("#jamPause").hidden = true;
+      const first = !seance().done.jam;
+      seanceMark("jam");
+      if (first) A.earnXP(10);
+      $("#jamFb").innerHTML = `<div class="fb-ok">✅ Cinq minutes jouées. Question honnête : combien de phrases ont vraiment respecté la règle ?</div>`;
+    }
+    btn("jamGo", go); btn("jamPause", pause);
+    $("#exQuit").onclick = () => { stop(); closeSheet(); };
+  }
+
+  return { init: init, view: view, wire: wire, seanceCard: seanceCard, seanceMark: seanceMark };
 })();

@@ -239,7 +239,32 @@ const LC = (function () {
     }
     function chord(midis) { midis.forEach((m) => note(m, 1.1, 0, 0.16)); }
     function resume() { const c = ac(); if (c.state === "suspended") c.resume(); }
-    return { note, sequence, chord, resume, midiToFreq };
+    // Drone tenu (pour jouer par-dessus) : il sonne jusqu'à droneStop().
+    let dr = null;
+    function drone(midis, gain) {
+      droneStop();
+      const c = ac(), t = c.currentTime;
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(gain || 0.07, t + 0.8);
+      g.connect(c.destination);
+      const oscs = midis.map((m) => {
+        const o = c.createOscillator();
+        o.type = "triangle"; o.frequency.value = midiToFreq(m);
+        o.connect(g); o.start(t); return o;
+      });
+      dr = { g: g, oscs: oscs };
+    }
+    function droneStop() {
+      if (!dr) return;
+      const c = ac(), t = c.currentTime, d = dr;
+      dr = null;
+      d.g.gain.cancelScheduledValues(t);
+      d.g.gain.setValueAtTime(Math.max(d.g.gain.value, 0.0001), t);
+      d.g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+      d.oscs.forEach((o) => o.stop(t + 0.4));
+    }
+    return { note, sequence, chord, resume, midiToFreq, drone, droneStop };
   })();
 
   /* ---- API publique ---- */

@@ -88,7 +88,8 @@ const LCRender = (function () {
     const degrees = opts.degrees || null;
     const showAll = !!opts.showAll;
 
-    const NUT = 34, FW = 44, TOP = 20, RG = 30, R = 12.5;
+    // NUT = 48 : la colonne des cordes à vide ne recouvre plus leur nom.
+    const NUT = 48, FW = 44, TOP = 20, RG = 30, R = 12.5;
     const rows = 6;
     const W = NUT + frets * FW + 14;
     const H = TOP * 2 + (rows - 1) * RG;
@@ -103,10 +104,12 @@ const LCRender = (function () {
     const single = [3, 5, 7, 9, 15, 17, 19, 21], dbl = [12, 24];
     const midY = TOP + ((rows - 1) * RG) / 2;
     single.forEach((f) => { if (f <= frets) g += `<circle class="fb-inlay" cx="${NUT + (f - 0.5) * FW}" cy="${midY}" r="4.5"/>`; });
+    // Double repère de la case 12 : ENTRE les cordes. Posé sur une corde, il
+    // apparaissait au centre de deux ronds et les faisait passer pour marqués.
     dbl.forEach((f) => {
       if (f <= frets) {
-        g += `<circle class="fb-inlay" cx="${NUT + (f - 0.5) * FW}" cy="${TOP + RG}" r="4.5"/>`;
-        g += `<circle class="fb-inlay" cx="${NUT + (f - 0.5) * FW}" cy="${TOP + RG * 3}" r="4.5"/>`;
+        g += `<circle class="fb-inlay" cx="${NUT + (f - 0.5) * FW}" cy="${TOP + RG * 1.5}" r="4.5"/>`;
+        g += `<circle class="fb-inlay" cx="${NUT + (f - 0.5) * FW}" cy="${TOP + RG * 3.5}" r="4.5"/>`;
       }
     });
     // frettes verticales
@@ -155,7 +158,7 @@ const LCRender = (function () {
     const marks = opts.marks || {};
     const labels = opts.labels || {};
 
-    const NUT = 34, FW = 44, TOP = 20, RG = 30, R = 13, rows = 6;
+    const NUT = 48, FW = 44, TOP = 20, RG = 30, R = 13, rows = 6;
     const W = NUT + frets * FW + 14;
     const H = TOP * 2 + (rows - 1) * RG;
     const openMidi = [64, 59, 55, 50, 45, 40];
@@ -165,10 +168,12 @@ const LCRender = (function () {
     const single = [3, 5, 7, 9, 15, 17, 19, 21], dbl = [12, 24];
     const midY = TOP + ((rows - 1) * RG) / 2;
     single.forEach((f) => { if (f <= frets) g += `<circle class="fb-inlay" cx="${NUT + (f - 0.5) * FW}" cy="${midY}" r="4.5"/>`; });
+    // Double repère de la case 12 : ENTRE les cordes. Posé sur une corde, il
+    // apparaissait au centre de deux ronds et les faisait passer pour marqués.
     dbl.forEach((f) => {
       if (f <= frets) {
-        g += `<circle class="fb-inlay" cx="${NUT + (f - 0.5) * FW}" cy="${TOP + RG}" r="4.5"/>`;
-        g += `<circle class="fb-inlay" cx="${NUT + (f - 0.5) * FW}" cy="${TOP + RG * 3}" r="4.5"/>`;
+        g += `<circle class="fb-inlay" cx="${NUT + (f - 0.5) * FW}" cy="${TOP + RG * 1.5}" r="4.5"/>`;
+        g += `<circle class="fb-inlay" cx="${NUT + (f - 0.5) * FW}" cy="${TOP + RG * 3.5}" r="4.5"/>`;
       }
     });
     for (let f = 0; f <= frets; f++) {
@@ -195,7 +200,20 @@ const LCRender = (function () {
           + `</g>`;
       }
     }
-    return `<div class="fb-scroll"><svg class="fretboard fq" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="min-width:${Math.min(W, 640)}px">${g}</svg></div>`;
+    return `<div class="fb-scroll"><svg class="fretboard fq" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="min-width:${Math.min(W, 640)}px">${g}</svg></div>`
+      + fqLegend(marks, opts.legend);
+  }
+
+  /* Légende du manche-quiz : un rond coloré sans explication rend l'exo
+     illisible. On n'affiche que les couleurs réellement posées à l'écran,
+     avec le texte que l'exo fournit (opts.legend = {pen, ok, ko, lit}). */
+  function fqLegend(marks, texts) {
+    if (!texts) return "";
+    const used = {};
+    Object.keys(marks).forEach((k) => { if (marks[k]) used[marks[k]] = 1; });
+    const items = ["pen", "ok", "ko", "lit"].filter((s) => used[s] && texts[s])
+      .map((s) => `<span class="lg"><span class="fq-sw ${s}"></span>${texts[s]}</span>`);
+    return items.length ? `<div class="legend fq-leg">${items.join("")}</div>` : "";
   }
 
   /* ---- petite légende réutilisable ---- */

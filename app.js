@@ -99,7 +99,7 @@
     else if (TAB === "manche") v.innerHTML = viewManche();
     else if (TAB === "atelier") v.innerHTML = LCEx.view();
     wire();
-    if (TAB === "atelier") LCEx.wire();
+    if (TAB === "atelier" || TAB === "socle") LCEx.wire();   // socle : la séance du jour
   }
 
   /* ================= DEMOS (leçons) ================= */
@@ -222,7 +222,7 @@
     const total = LESSONS.length;
     const next = LESSONS.find((l) => !S.done[l.id]) || LESSONS[LESSONS.length - 1];
     const rk = rank(S.xp);
-    let html = `<div class="hero">
+    let html = (typeof LCEx !== "undefined" ? LCEx.seanceCard() : "") + `<div class="hero">
       <div class="hero-top"><div><div class="hero-title">Deviens le king de l'impro</div>
       <div class="hero-sub">Le socle de théorie qui relie le piano, la guitare et l'impro.</div></div></div>
       <div class="prog"><div class="prog-bar"><span style="width:${Math.round(doneN / total * 100)}%"></span></div>
@@ -304,6 +304,7 @@
   }
   function finishLesson(id, ok) {
     if (!S.done[id]) { S.done[id] = true; earnXP(ok ? 15 : 8); save(); }
+    if (typeof LCEx !== "undefined") LCEx.seanceMark("lesson:" + id);
     closeOverlay(); render();
   }
   /* L'overlay est vidé APRÈS l'animation de sortie. Si on rouvre une feuille
