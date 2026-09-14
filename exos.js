@@ -126,8 +126,8 @@ const LCEx = (function () {
 
   function view() {
     return `<div class="v-head"><h1>⚡ L'Atelier</h1>
-      <p class="v-sub">Ici on ne cherche pas à comprendre : on <b>automatise</b>. Six chantiers, dans l'ordre — et on ne coche rien en trichant.</p></div>
-      ${cardGammes()}${cardPentas()}${cardManche()}${cardTonalite()}${cardViser()}${cardFonctions()}
+      <p class="v-sub">Ici on ne cherche pas à comprendre : on <b>automatise</b>. Sept chantiers, dans l'ordre — et on ne coche rien en trichant.</p></div>
+      ${cardGammes()}${cardPentas()}${cardManche()}${cardTonalite()}${cardViser()}${cardFonctions()}${cardRelever()}
       <div class="ate-sep">Drills libres · questions infinies</div>
       ${A.drillsSection()}`;
   }
@@ -249,6 +249,14 @@ const LCEx = (function () {
     if (id === "qfonc")       return exQFonc();
     if (id === "qdeg")        return exQDeg();
     if (id === "qsec")        return exQSec();
+    if (id === "rel1")        return exRelTonique();
+    if (id === "rel2")        return exRelMode();
+    if (id.indexOf("rel3-") === 0) return exRelDegre(+id.slice(5));
+    if (id === "rel4")        return exRelGrille();
+    if (id === "rel5")        return exRelIntrus();
+    if (id === "rel6")        return exRelFull();
+    if (id === "relmethode")  return exRelMethode();
+    if (id === "relcarnet")   return exRelCarnet();
   }
 
   /* =========================================================================
@@ -2438,6 +2446,600 @@ const LCEx = (function () {
       </div></div>`;
   }
 
+
+  /* =========================================================================
+     CHANTIER 7 — LE RELEVÉ
+     Le pont : la théorie cesse d'être une connaissance et devient un SENS.
+     Tout se répond à l'oreille (aucun micro nécessaire), et la dernière
+     salle n'est pas un exercice — c'est le carnet des vraies chansons.
+     ========================================================================= */
+  const MIN_Q    = ["min", "dim", "maj", "min", "min", "maj", "maj"];
+  const MIN_ROM  = ["i", "ii°", "♭III", "iv", "v", "♭VI", "♭VII"];
+  const degMin = (t) => LC.naturalMinor(t).map((r, i) => ({ root: r, qual: MIN_Q[i], roman: MIN_ROM[i], degree: i }));
+  /* le V majeur du mineur (mineur harmonique) — il n'est pas dans la gamme naturelle */
+  const domMin = (t) => ({ root: LC.naturalMinor(t)[4], qual: "maj", roman: "V" });
+  function degOf(t, minor) { return minor ? degMin(t) : deg7(t); }
+  /* "V" = le degré spécial (dominante majeure du mineur) */
+  function chordAt(t, minor, d) { return d === "V" ? domMin(t) : degOf(t, minor)[d]; }
+  function romanAt(t, minor, d) { return d === "V" ? "V" : degOf(t, minor)[d].roman; }
+
+  /* les 12 tonalités mineures réellement jouées (≤ 6 altérations) */
+  const CIRCLE_MIN = ["A", "E", "B", "F#", "C#", "G#", "D#", "Bb", "F", "C", "G", "D"];
+  const relKey = (minor) => pick(minor ? CIRCLE_MIN : CIRCLE);
+  const REL_MAJ = [
+    { d: [0, 4, 5, 3] }, { d: [0, 5, 3, 4] }, { d: [5, 3, 0, 4] }, { d: [0, 3, 4, 0] },
+    { d: [0, 3, 0, 4] }, { d: [1, 4, 0, 0] }, { d: [0, 2, 3, 4] }, { d: [5, 1, 4, 0] },
+    { d: [3, 4, 0, 0] }, { d: [0, 5, 1, 4] }
+  ];
+  const REL_MIN = [
+    { d: [0, 6, 5, "V"] }, { d: [0, 3, 4, 0] }, { d: [0, 3, "V", 0] }, { d: [0, 5, 6, 0] },
+    { d: [0, 2, 6, 0] }, { d: [0, 5, "V", 0] }, { d: [3, 0, "V", 0] }, { d: [0, 6, 3, "V"] }
+  ];
+  const relProg = (t, minor, spec) => spec.d.map((d) => chordAt(t, minor, d));
+  const relRoms = (t, minor, spec) => spec.d.map((d) => romanAt(t, minor, d));
+  /* l'ancrage : l'accord de tonique, pour poser la maison dans l'oreille */
+  const relHome = (t, minor) => [{ root: t, qual: minor ? "min" : "maj" }];
+
+  /* --------- barre d'écoute commune à tous les exos du chantier --------- */
+  function relBar(prog, t, minor, extra, noHome) {
+    return `<div class="btnrow2">
+      ${pbtn(prog, "▶ La grille", "primary")}
+      ${pbtn(prog.concat(prog), "🔁 Deux fois")}
+      ${noHome ? "" : pbtn(relHome(t, minor), "🏠 La maison")}
+      ${extra || ""}</div>`;
+  }
+
+  /* ===================== ⓵ TROUVER LA MAISON ===================== */
+  function exRelTonique() {
+    openSheet("🏠 Trouver la maison");
+    const TOTAL = 8;
+    let n = 0, score = 0, q = null, locked = false;
+    startT(); next();
+
+    function gen() {
+      const minor = Math.random() < 0.4, t = relKey(minor);
+      /* à partir de la 4e question, des grilles qui ne COMMENCENT PAS par la tonique */
+      const pool = minor ? REL_MIN : REL_MAJ;
+      const spec = n > 3 ? pick(pool.filter((p) => p.d[0] !== 0).concat(pool.filter((p) => p.d[0] !== 0))) || pick(pool) : pick(pool);
+      const tp = PCS(t);
+      const cands = shuffle([
+        { pc: tp, ok: true, r: "la tonique" },
+        { pc: (tp + 7) % 12, ok: false, r: "la quinte — solide, mais elle appelle encore" },
+        { pc: (tp + (minor ? 3 : 4)) % 12, ok: false, r: "la tierce — elle donne la couleur, pas le repos" }
+      ]);
+      return { t, minor, spec, prog: relProg(t, minor, spec), cands };
+    }
+    function next() { if (n >= TOTAL) return finish(); n++; locked = false; q = gen(); draw(""); }
+    function draw(fb, keep) {
+      paint(`<div class="ecl-top">${n}/${TOTAL} · <b>${score}</b> bonne${score > 1 ? "s" : ""}</div>
+        <div class="dq">Écoute la grille, puis les <b>trois notes</b>.<br>Laquelle est la <b>tonique</b> ?
+          <span class="dq-hint">celle où ça se pose — celle sur laquelle tu pourrais t'arrêter sans que ça reste en l'air</span></div>
+        ${relBar(q.prog, q.t, q.minor, "", true)}
+        <div class="dq-choices">${q.cands.map((c, i) =>
+          `<button class="dq-c" data-v="${i}"><span data-note="${60 + c.pc}">🔊</span> Note ${i + 1}</button>`).join("")}</div>
+        <div class="hint">Astuce : chante la note en même temps que la grille tourne. Celle qui « ferme la porte », c'est elle.</div>
+        <div class="dq-fb">${fb}</div>`, keep);
+      wireProg(); wireNote();
+      if (!locked) on(".dq-c", answer);
+      btn("nx", next);
+    }
+    /* le petit haut-parleur joue la note SANS valider la réponse */
+    function wireNote() {
+      $$("[data-note]", $("#exBody")).forEach((el) => {
+        el.onclick = (e) => { e.stopPropagation(); LC.audio.resume(); LC.audio.note(+el.dataset.note, 1.4); };
+      });
+    }
+    function answer(el) {
+      if (locked) return; locked = true;
+      const i = +el.dataset.v, ok = q.cands[i].ok;
+      $$(".dq-c", $("#exBody")).forEach((x, k) => {
+        if (q.cands[k].ok) x.classList.add("ok"); else if (x === el) x.classList.add("ko");
+        x.disabled = true;
+      });
+      if (ok) score++;
+      const bonne = q.cands.findIndex((c) => c.ok);
+      $(".dq-fb").innerHTML = `<div class="${ok ? "fb-ok" : "fb-ko"}">${ok ? "✅" : "❌"} La maison, c'était la <b>note ${bonne + 1}</b> — ${A.disp(q.t)}${q.minor ? " mineur" : " majeur"}.
+        ${ok ? "" : `Tu as choisi ${q.cands[i].r}.`}</div>
+        ${relBar(q.prog, q.t, q.minor, pbtn(q.prog.concat(relHome(q.t, q.minor)), "▶ La grille + la maison à la fin"))}
+        <button class="btn big" id="nx">Suivant →</button>`;
+      wireProg(); btn("nx", next);
+    }
+    function finish() {
+      const ms = stopT(), rec = setBest("rel1", { score, time: ms });
+      A.earnXP(score * 4);
+      if (score >= 6) { const first = !isDone("rl:1"); setDone("rl:1"); if (first) A.earnXP(20); }
+      paint(`<div class="ex-win"><div class="win-big">${score}/${TOTAL}</div>
+        <div class="win-sub">${fmtT(ms)}${rec ? " · <b>record</b> 🏆" : ""}</div>
+        <div class="hint">C'est le premier geste de tout relevé, et le seul qui ne s'apprend pas dans un livre : <b>trouver la maison</b>. Tant que tu ne l'as pas, tu ne peux rien nommer. Une fois que tu l'as, tout le reste devient des degrés.</div>
+        <button class="btn big primary" id="again">↻ Relancer</button>
+        <button class="btn big ghost" id="quit">Terminer</button></div>`);
+      btn("again", exRelTonique); btn("quit", closeSheet);
+    }
+  }
+
+  /* ===================== ⓶ MAJEUR OU MINEUR (la tonalité) ===================== */
+  function exRelMode() {
+    openSheet("🌓 Majeur ou mineur ?");
+    const TOTAL = 8;
+    let n = 0, score = 0, q = null, locked = false;
+    startT(); next();
+
+    function gen() {
+      const minor = Math.random() < 0.5, t = relKey(minor);
+      const spec = pick(minor ? REL_MIN : REL_MAJ);
+      return { t, minor, spec, prog: relProg(t, minor, spec) };
+    }
+    function next() { if (n >= TOTAL) return finish(); n++; locked = false; q = gen(); draw(""); }
+    function draw(fb, keep) {
+      paint(`<div class="ecl-top">${n}/${TOTAL} · <b>${score}</b> bonne${score > 1 ? "s" : ""}</div>
+        <div class="dq">Cette grille est en <b>majeur</b> ou en <b>mineur</b> ?
+          <span class="dq-hint">pas l'accord : la tonalité — l'endroit où ça veut se reposer</span></div>
+        ${relBar(q.prog, q.t, q.minor, "", true)}
+        <div class="dq-choices">
+          <button class="dq-c" data-v="maj">Majeur</button>
+          <button class="dq-c" data-v="min">Mineur</button></div>
+        <div class="hint">Ne cherche pas le premier accord : beaucoup de morceaux majeurs commencent sur le vi, et beaucoup de mineurs finissent sur le ♭VII. Cherche où ça <b>se pose</b>.</div>
+        <div class="dq-fb">${fb}</div>`, keep);
+      wireProg();
+      if (!locked) on(".dq-c", answer);
+      btn("nx", next);
+    }
+    function answer(el) {
+      if (locked) return; locked = true;
+      const rep = q.minor ? "min" : "maj", ok = el.dataset.v === rep;
+      $$(".dq-c", $("#exBody")).forEach((x) => {
+        if (x.dataset.v === rep) x.classList.add("ok"); else if (x === el) x.classList.add("ko");
+        x.disabled = true;
+      });
+      if (ok) score++;
+      $(".dq-fb").innerHTML = `<div class="${ok ? "fb-ok" : "fb-ko"}">${ok ? "✅" : "❌"} <b>${A.disp(q.t)} ${q.minor ? "mineur" : "majeur"}</b> — ${line(q.prog)} = ${relRoms(q.t, q.minor, q.spec).join(" – ")}.</div>
+        <button class="btn big" id="nx">Suivant →</button>`;
+      btn("nx", next);
+    }
+    function finish() {
+      const ms = stopT(), rec = setBest("rel2", { score, time: ms });
+      A.earnXP(score * 3);
+      if (score >= 7) { const first = !isDone("rl:2"); setDone("rl:2"); if (first) A.earnXP(20); }
+      paint(`<div class="ex-win"><div class="win-big">${score}/${TOTAL}</div>
+        <div class="win-sub">${fmtT(ms)}${rec ? " · <b>record</b> 🏆" : ""}</div>
+        <div class="hint">Majeur et mineur relatifs partagent <b>exactement</b> les mêmes accords : seul le point de repos les sépare. C'est pour ça que cet exercice se joue à l'oreille et pas au calcul.</div>
+        <button class="btn big primary" id="again">↻ Relancer</button>
+        <button class="btn big ghost" id="quit">Terminer</button></div>`);
+      btn("again", exRelMode); btn("quit", closeSheet);
+    }
+  }
+
+  /* ===================== ⓷ LE DEGRÉ (le cœur du relevé) ===================== */
+  const REL_DEG_LV = [
+    { n: "I · IV · V", pool: [0, 3, 4] },
+    { n: "+ le vi et le ii", pool: [0, 1, 3, 4, 5] },
+    { n: "les six degrés", pool: [0, 1, 2, 3, 4, 5] }
+  ];
+  function exRelDegre(lv) {
+    lv = lv || 1;
+    const L = REL_DEG_LV[lv - 1];
+    openSheet("🔢 Le degré · niveau " + lv + " · " + L.n);
+    const TOTAL = 10;
+    let n = 0, score = 0, q = null, locked = false;
+    startT(); next();
+
+    function gen() {
+      const t = pick(CIRCLE), D = deg7(t), d = pick(L.pool);
+      return { t, D, d, cible: D[d], prog: [D[0], D[d]] };
+    }
+    function next() { if (n >= TOTAL) return finish(); n++; locked = false; q = gen(); draw(""); }
+    function draw(fb, keep) {
+      paint(`<div class="ecl-top">${n}/${TOTAL} · <b>${score}</b> bonne${score > 1 ? "s" : ""}</div>
+        <div class="dq">Tu entends le <b>I</b>, puis un <b>autre accord</b>.<br>C'est quel degré ?
+          <span class="dq-hint">l'oreille reconnaît la <b>distance</b>, pas la note — donc ça marche dans les 12 tonalités</span></div>
+        <div class="btnrow2">${pbtn(q.prog, "▶ I puis l'accord", "primary")}
+          ${pbtn(q.prog.concat(q.prog), "🔁 Deux fois")}
+          ${pbtn([q.D[0]], "🏠 Le I seul")}
+          ${pbtn([q.cible], "🎯 L'accord seul")}</div>
+        <div class="dq-choices">${L.pool.map((d) =>
+          `<button class="dq-c" data-v="${d}">${q.D[d].roman}</button>`).join("")}</div>
+        <div class="dq-fb">${fb}</div>`, keep);
+      wireProg();
+      if (!locked) on(".dq-c", answer);
+      btn("nx", next);
+    }
+    function answer(el) {
+      if (locked) return; locked = true;
+      const ok = +el.dataset.v === q.d;
+      $$(".dq-c", $("#exBody")).forEach((x) => {
+        if (+x.dataset.v === q.d) x.classList.add("ok"); else if (x === el) x.classList.add("ko");
+        x.disabled = true;
+      });
+      if (ok) score++;
+      const REP = ["il ne bouge pas : c'est la maison.",
+        "mineur, un ton au-dessus du I. Il sonne « en route », jamais posé.",
+        "mineur, il ressemble au I en plus fragile — le plus dur des six.",
+        "majeur, large, un ton en dessous du V. C'est le « grand départ ».",
+        "majeur, tendu : il <b>veut</b> revenir au I. Le plus facile à reconnaître.",
+        "mineur, c'est le repos triste — le même que le I, en gris."][q.d];
+      $(".dq-fb").innerHTML = `<div class="${ok ? "fb-ok" : "fb-ko"}">${ok ? "✅" : "❌"} <b>${q.D[q.d].roman}</b> (${lbl(q.cible)} dans ${A.disp(q.t)}) — ${REP}</div>
+        <div class="btnrow2">${pbtn(q.prog, "▶ Réécouter")}${pbtn([q.D[0], q.cible, q.D[0]], "▶ Avec le retour au I")}</div>
+        <button class="btn big" id="nx">Suivant →</button>`;
+      wireProg(); btn("nx", next);
+    }
+    function finish() {
+      const ms = stopT(), rec = setBest("rel3:" + lv, { score, time: ms });
+      A.earnXP(score * 4);
+      if (score >= 8) { const first = !isDone("rl:3:" + lv); setDone("rl:3:" + lv); if (first) A.earnXP(25); }
+      const suivant = lv < 3 && score >= 8;
+      paint(`<div class="ex-win"><div class="win-big">${score}/${TOTAL}</div>
+        <div class="win-sub">${fmtT(ms)}${rec ? " · <b>record</b> 🏆" : ""}</div>
+        <div class="hint">${suivant ? "Niveau validé. Le suivant ajoute des degrés — et le iii, qui piège tout le monde."
+          : "Le raccourci qui marche : entends d'abord si l'accord est <b>majeur ou mineur</b>. Majeur → I, IV ou V. Mineur → ii, iii ou vi. Tu viens de diviser le problème par deux."}</div>
+        ${suivant ? `<button class="btn big primary" id="up">Niveau ${lv + 1} →</button>` : ""}
+        <button class="btn big ${suivant ? "ghost" : "primary"}" id="again">↻ Relancer</button>
+        <button class="btn big ghost" id="quit">Terminer</button></div>`);
+      if (suivant) btn("up", () => exRelDegre(lv + 1));
+      btn("again", () => exRelDegre(lv)); btn("quit", closeSheet);
+    }
+  }
+
+  /* ===================== ⓸ LA GRILLE ENTIÈRE ===================== */
+  function exRelGrille() {
+    openSheet("🎼 Relever la grille");
+    const TOTAL = 6;
+    let n = 0, score = 0, q = null, pose = [], locked = false;
+    startT(); next();
+
+    function gen() {
+      const minor = Math.random() < 0.35, t = relKey(minor);
+      const spec = pick(minor ? REL_MIN : REL_MAJ);
+      return { t, minor, spec, prog: relProg(t, minor, spec), roms: relRoms(t, minor, spec),
+        choix: minor ? ["i", "♭III", "iv", "v", "V", "♭VI", "♭VII"] : ["I", "ii", "iii", "IV", "V", "vi"] };
+    }
+    function next() { if (n >= TOTAL) return finish(); n++; locked = false; pose = []; q = gen(); draw(""); }
+    function draw(fb, keep) {
+      const plein = pose.length === 4;
+      paint(`<div class="ecl-top">${n}/${TOTAL} · <b>${score}</b> grille${score > 1 ? "s" : ""}</div>
+        <div class="dq">Quatre accords. <b>Pose les quatre degrés</b>, dans l'ordre.
+          <span class="dq-hint">tonalité ${q.minor ? "<b>mineure</b>" : "<b>majeure</b>"} — l'app te le dit, c'est le reste qui compte</span></div>
+        ${relBar(q.prog, q.t, q.minor)}
+        <div class="degchips">${[0, 1, 2, 3].map((i) =>
+          `<span class="dchip${pose[i] ? " on" : ""}">${pose[i] || "?"}</span>`).join("")}</div>
+        <div class="dq-choices">${q.choix.map((r) =>
+          `<button class="dq-c${locked ? "" : ""}" data-v="${r}">${r}</button>`).join("")}</div>
+        <div class="btnrow2">
+          <button class="btn" id="undo"${pose.length ? "" : " disabled"}>← Effacer</button>
+          <button class="btn primary" id="val"${plein && !locked ? "" : " disabled"}>Valider</button></div>
+        <div class="dq-fb">${fb}</div>`, keep);
+      wireProg();
+      if (!locked) {
+        on(".dq-c", (el) => { if (pose.length < 4) { pose.push(el.dataset.v); draw("", true); } });
+        btn("undo", () => { pose.pop(); draw("", true); });
+        btn("val", valider);
+      }
+      btn("nx", next);
+    }
+    function valider() {
+      if (locked || pose.length < 4) return; locked = true;
+      const juste = pose.every((r, i) => r === q.roms[i]);
+      if (juste) score++;
+      const dEtail = q.roms.map((r, i) => `<b style="color:${pose[i] === r ? "var(--teal)" : "var(--coral)"}">${pose[i]}</b> → ${r}`).join(" · ");
+      $(".dq-fb").innerHTML = `<div class="${juste ? "fb-ok" : "fb-ko"}">${juste ? "✅ Grille relevée." : "❌ Pas encore."}
+        La vraie grille : <b>${q.roms.join(" – ")}</b> — en ${A.disp(q.t)}${q.minor ? " mineur" : " majeur"} ça donne ${line(q.prog)}.<br>${dEtail}</div>
+        <div class="btnrow2">${pbtn(q.prog, "▶ Réécouter")}${pbtn(relHome(q.t, q.minor).concat(q.prog), "▶ Maison puis grille")}</div>
+        <button class="btn big" id="nx">Suivant →</button>`;
+      wireProg(); btn("nx", next);
+    }
+    function finish() {
+      const ms = stopT(), rec = setBest("rel4", { score, time: ms });
+      A.earnXP(score * 8);
+      if (score >= 4) { const first = !isDone("rl:4"); setDone("rl:4"); if (first) A.earnXP(30); }
+      paint(`<div class="ex-win"><div class="win-big">${score}/${TOTAL}</div>
+        <div class="win-sub">${fmtT(ms)}${rec ? " · <b>record</b> 🏆" : ""}</div>
+        <div class="hint">C'est <b>exactement</b> ce que tu feras sur une vraie chanson — en moins confortable, parce qu'il y aura une voix, une batterie et un tempo qui n'attend pas. Va au <b>Carnet</b> : c'est là que ça devient réel.</div>
+        <button class="btn big primary" id="again">↻ Relancer</button>
+        <button class="btn big ghost" id="carnet">📓 Le carnet</button>
+        <button class="btn big ghost" id="quit">Terminer</button></div>`);
+      btn("again", exRelGrille); btn("carnet", exRelCarnet); btn("quit", closeSheet);
+    }
+  }
+
+  /* ===================== ⓹ L'INTRUS ===================== */
+  function exRelIntrus() {
+    openSheet("👻 L'intrus");
+    const TOTAL = 8;
+    let n = 0, score = 0, q = null, locked = false;
+    startT(); next();
+
+    function gen() {
+      const t = pick(CIRCLE), D = deg7(t), E = emprunts(t);
+      const base = pick(REL_MAJ.filter((p) => p.d.indexOf(0) >= 0));
+      const prog = base.d.map((d) => D[d]);
+      const roms = base.d.map((d) => D[d].roman);
+      /* jamais la 1re mesure : il faut une maison. Et pour une dominante secondaire,
+         la cible ne peut pas être le I — V/I, c'est le V7 de la tonalité, donc
+         PAS un intrus : la question n'aurait aucune bonne réponse. */
+      let kind = pick(["sec", "emp", "emp"]);
+      const okSec = [1, 2, 3].filter((p) => roms[(p + 1) % 4] !== "I");
+      if (kind === "sec" && !okSec.length) kind = "emp";
+      const pos = kind === "sec" ? pick(okSec) : 1 + rand(3);
+      let intrus, quoi, why;
+      if (kind === "sec") {
+        const suivant = prog[(pos + 1) % 4], rSuiv = roms[(pos + 1) % 4];
+        intrus = secDom(suivant.root);
+        quoi = "une dominante secondaire";
+        why = `<b>${lbl(intrus)}</b> = <b>V/${rSuiv}</b> : un accord <b>7</b> hors tonalité, bâti une quinte au-dessus de l'accord qui suit. Il ne se repose pas, il <b>annonce</b>.`;
+      } else {
+        const e = pick([E[0], E[1], E[2]]);
+        intrus = e.c;
+        quoi = "un emprunt au mineur parallèle";
+        why = `<b>${lbl(intrus)}</b> = <b>${e.roman}</b> emprunté à ${A.disp(t)} <b>mineur</b>. Même tonique, autre mode : c'est ce qui fait l'ombre soudaine.`;
+      }
+      const mix = prog.slice(); mix[pos] = intrus;
+      return { t, prog: mix, pos, quoi, why, clean: prog, roms };
+    }
+    function next() { if (n >= TOTAL) return finish(); n++; locked = false; q = gen(); draw(""); }
+    function draw(fb, keep) {
+      paint(`<div class="ecl-top">${n}/${TOTAL} · <b>${score}</b> bonne${score > 1 ? "s" : ""}</div>
+        <div class="dq">Quatre accords en <b>${A.disp(q.t)} majeur</b>. Un seul <b>n'appartient pas</b> à la tonalité.<br>Lequel ?
+          <span class="dq-hint">c'est celui qui « sort » : soit il tire trop fort, soit il assombrit d'un coup</span></div>
+        ${relBar(q.prog, q.t, false)}
+        <div class="dq-choices">${[0, 1, 2, 3].map((i) =>
+          `<button class="dq-c" data-v="${i}">Accord ${i + 1}</button>`).join("")}</div>
+        <div class="dq-fb">${fb}</div>`, keep);
+      wireProg();
+      if (!locked) on(".dq-c", answer);
+      btn("nx", next);
+    }
+    function answer(el) {
+      if (locked) return; locked = true;
+      const ok = +el.dataset.v === q.pos;
+      $$(".dq-c", $("#exBody")).forEach((x, k) => {
+        if (k === q.pos) x.classList.add("ok"); else if (x === el) x.classList.add("ko");
+        x.disabled = true;
+      });
+      if (ok) score++;
+      $(".dq-fb").innerHTML = `<div class="${ok ? "fb-ok" : "fb-ko"}">${ok ? "✅" : "❌"} C'était l'accord <b>${q.pos + 1}</b> : ${q.quoi}.<br>${q.why}</div>
+        <div class="btnrow2">${pbtn(q.prog, "▶ Avec l'intrus")}${pbtn(q.clean, "▶ Sans")}</div>
+        <button class="btn big" id="nx">Suivant →</button>`;
+      wireProg(); btn("nx", next);
+    }
+    function finish() {
+      const ms = stopT(), rec = setBest("rel5", { score, time: ms });
+      A.earnXP(score * 5);
+      if (score >= 6) { const first = !isDone("rl:5"); setDone("rl:5"); if (first) A.earnXP(25); }
+      paint(`<div class="ex-win"><div class="win-big">${score}/${TOTAL}</div>
+        <div class="win-sub">${fmtT(ms)}${rec ? " · <b>record</b> 🏆" : ""}</div>
+        <div class="hint">Sur une vraie chanson, c'est <b>cet</b> accord qui te bloque — celui qui « ne marche pas » quand tu essaies les degrés de la tonalité. Maintenant tu sais qu'il y a deux suspects, et deux seulement, dans 90 % des cas.</div>
+        <button class="btn big primary" id="again">↻ Relancer</button>
+        <button class="btn big ghost" id="quit">Terminer</button></div>`);
+      btn("again", exRelIntrus); btn("quit", closeSheet);
+    }
+  }
+
+  /* ===================== ⓺ LE RELEVÉ COMPLET (chrono) ===================== */
+  function exRelFull() {
+    openSheet("🏁 Le relevé complet");
+    const TOTAL = 4;
+    let n = 0, score = 0, q = null, etape = 0, pose = [], gotMode = null, gotTon = null;
+    startT(); next();
+
+    function gen() {
+      const minor = Math.random() < 0.4, t = relKey(minor);
+      const spec = pick(minor ? REL_MIN : REL_MAJ), tp = PCS(t);
+      const cands = shuffle([tp, (tp + 7) % 12, (tp + 5) % 12, (tp + (minor ? 3 : 4)) % 12]);
+      return { t, tp, minor, spec, prog: relProg(t, minor, spec), roms: relRoms(t, minor, spec),
+        cands, choix: minor ? ["i", "♭III", "iv", "v", "V", "♭VI", "♭VII"] : ["I", "ii", "iii", "IV", "V", "vi"] };
+    }
+    function next() {
+      if (n >= TOTAL) return finish();
+      n++; etape = 0; pose = []; gotMode = null; gotTon = null; q = gen(); draw("");
+    }
+    function head() {
+      return `<div class="ecl-top">Relevé ${n}/${TOTAL} · <b>${score}</b> point${score > 1 ? "s" : ""}</div>
+        <div class="dq">Aucune indication cette fois. <b>Tonalité, puis degrés.</b>
+          <span class="dq-hint">étape ${etape + 1}/3 — ${["le mode", "la tonique", "les quatre degrés"][etape]}</span></div>
+        ${relBar(q.prog, q.t, q.minor, "", etape < 2)}`;
+    }
+    function draw(fb, keep) {
+      let corps = "";
+      if (etape === 0) {
+        corps = `<div class="dq-choices"><button class="dq-c" data-v="maj">Majeur</button><button class="dq-c" data-v="min">Mineur</button></div>`;
+      } else if (etape === 1) {
+        corps = `<div class="dq-choices">${q.cands.map((pc, i) =>
+          `<button class="dq-c" data-v="${pc}"><span data-note="${60 + pc}">🔊</span> Note ${i + 1}</button>`).join("")}</div>`;
+      } else {
+        corps = `<div class="degchips">${[0, 1, 2, 3].map((i) =>
+          `<span class="dchip${pose[i] ? " on" : ""}">${pose[i] || "?"}</span>`).join("")}</div>
+          <div class="dq-choices">${q.choix.map((r) => `<button class="dq-c" data-v="${r}">${r}</button>`).join("")}</div>
+          <div class="btnrow2"><button class="btn" id="undo"${pose.length ? "" : " disabled"}>← Effacer</button>
+            <button class="btn primary" id="val"${pose.length === 4 ? "" : " disabled"}>Valider le relevé</button></div>`;
+      }
+      paint(head() + corps + `<div class="dq-fb">${fb}</div>`, keep);
+      wireProg();
+      $$("[data-note]", $("#exBody")).forEach((el) => {
+        el.onclick = (e) => { e.stopPropagation(); LC.audio.resume(); LC.audio.note(+el.dataset.note, 1.4); };
+      });
+      if (etape === 0) on(".dq-c", (el) => { gotMode = el.dataset.v; etape = 1; draw("", true); });
+      else if (etape === 1) on(".dq-c", (el) => { gotTon = +el.dataset.v; etape = 2; draw("", true); });
+      else {
+        on(".dq-c", (el) => { if (pose.length < 4) { pose.push(el.dataset.v); draw("", true); } });
+        btn("undo", () => { pose.pop(); draw("", true); });
+        btn("val", valider);
+      }
+      btn("nx", next);
+    }
+    function valider() {
+      const okMode = gotMode === (q.minor ? "min" : "maj");
+      const okTon = gotTon === q.tp;
+      const okDeg = pose.every((r, i) => r === q.roms[i]);
+      const pts = (okMode ? 1 : 0) + (okTon ? 1 : 0) + (okDeg ? 2 : 0);
+      score += pts;
+      paint(head() + `<div class="dq-fb">
+        <div class="${pts === 4 ? "fb-ok" : "fb-ko"}">${pts}/4 sur ce relevé.</div>
+        <table class="tbl"><tr><th></th><th>Toi</th><th>La vérité</th></tr>
+          <tr><td>Mode</td><td><b style="color:${okMode ? "var(--teal)" : "var(--coral)"}">${gotMode === "min" ? "mineur" : "majeur"}</b></td><td>${q.minor ? "mineur" : "majeur"}</td></tr>
+          <tr><td>Tonique</td><td><b style="color:${okTon ? "var(--teal)" : "var(--coral)"}">${A.disp(LC.SHARP[gotTon])}</b></td><td>${A.disp(q.t)}</td></tr>
+          <tr><td>Degrés</td><td><b style="color:${okDeg ? "var(--teal)" : "var(--coral)"}">${pose.join(" – ")}</b></td><td>${q.roms.join(" – ")}</td></tr>
+          <tr><td>Accords</td><td colspan="2">${line(q.prog)}</td></tr></table>
+        <div class="btnrow2">${pbtn(q.prog, "▶ Réécouter")}${pbtn(relHome(q.t, q.minor).concat(q.prog), "▶ Maison puis grille")}</div>
+        <button class="btn big" id="nx">Suivant →</button></div>`);
+      wireProg(); btn("nx", next);
+    }
+    function finish() {
+      const ms = stopT(), max = TOTAL * 4, rec = setBest("rel6", { score, time: ms });
+      A.earnXP(score * 4);
+      if (score >= max - 3) { const first = !isDone("rl:6"); setDone("rl:6"); if (first) A.earnXP(40); }
+      paint(`<div class="ex-win"><div class="win-big">${score}/${max}</div>
+        <div class="win-sub">${fmtT(ms)}${rec ? " · <b>record</b> 🏆" : ""}</div>
+        <div class="hint">${score >= max - 3
+          ? "Tu relèves une grille à l'oreille, sans indication, dans n'importe quelle tonalité. <b>Il ne te manque plus rien pour attaquer une vraie chanson.</b> Ouvre le carnet."
+          : "Ce qui coince se voit dans le tableau : si c'est la <b>tonique</b>, refais « Trouver la maison » ; si ce sont les <b>degrés</b>, refais « Le degré » au niveau du dessus."}</div>
+        <button class="btn big primary" id="carnet">📓 Relever une vraie chanson</button>
+        <button class="btn big ghost" id="again">↻ Relancer</button>
+        <button class="btn big ghost" id="quit">Terminer</button></div>`);
+      btn("carnet", exRelCarnet); btn("again", exRelFull); btn("quit", closeSheet);
+    }
+  }
+
+  /* ===================== LA MÉTHODE (fiche) ===================== */
+  function exRelMethode() {
+    openSheet("🧭 La méthode");
+    const t = "C", D = deg7(t);
+    paint(`<div class="ex-intro big">Le protocole, dans l'ordre, pour une chanson que tu n'as jamais jouée. Il tient en <b>six gestes</b> et il ne demande aucun logiciel : une chanson, ton instrument, et vingt minutes.</div>
+
+      <div class="role-card">
+        <div class="rc-h">1 · Trouve la maison</div>
+        <div class="rc-b">Lance la chanson. Cherche <b>une seule note</b> sur ton instrument : celle sur laquelle tu peux t'arrêter sans que ça reste en l'air. Fredonne-la pendant tout le refrain — si elle tient, c'est la tonique. <b>Ne fais rien d'autre tant que tu ne l'as pas.</b></div>
+        <div class="rc-h">2 · Majeur ou mineur</div>
+        <div class="rc-b">Joue la tierce majeure au-dessus de ta tonique, puis la mineure. Une des deux se dispute avec la chanson. Tu as ta tonalité.</div>
+        <div class="rc-h">3 · Compte les mesures</div>
+        <div class="rc-b">Avant même de chercher les accords : <b>combien d'accords par cycle</b>, et <b>quand ça change</b>. Presque toujours 4 ou 8 mesures qui tournent. Tape du pied et compte 1-2-3-4 : tu entends le changement avant de savoir ce qu'il est.</div>
+        <div class="rc-h">4 · Pose le I et le V</div>
+        <div class="rc-b">Essaie ta tonique sur chaque case. Puis le V. Ces deux-là couvrent déjà la moitié des mesures de la moitié des chansons. <b>Tu ne cherches pas des notes, tu testes des degrés.</b></div>
+        <div class="rc-h">5 · Bouche les trous avec IV, vi, ii</div>
+        <div class="rc-b">Dans l'ordre de fréquence : <b>IV</b>, <b>vi</b>, <b>ii</b>, <b>iii</b>. Quatre essais maximum par mesure — et tu as le droit de te tromper à voix haute, ça s'entend tout de suite.</div>
+        <div class="rc-h">6 · L'accord qui résiste</div>
+        <div class="rc-b">S'il en reste un qui ne marche avec aucun degré, c'est presque toujours l'un des deux : une <b>dominante secondaire</b> (un accord 7 qui annonce le suivant) ou un <b>emprunt au mineur</b> (souvent le <b>iv mineur</b>, ou le <b>♭VII</b>). Teste les deux. C'est la salle « L'intrus ».</div>
+      </div>
+
+      <div class="ate-sub">Les trois règles qui font gagner une heure</div>
+      <ol class="rules">
+        <li><b>Ralentis la chanson</b>, ne t'accélère pas. YouTube et Spotify le font à 0,75×. Ta main n'est pas le problème, ton oreille l'est.</li>
+        <li><b>Une boucle de 4 mesures à la fois.</b> Personne ne relève une chanson entière d'un bloc — on relève une boucle, puis on vérifie qu'elle revient.</li>
+        <li><b>Écris en degrés, pas en accords.</b> Tu retiendras la chanson pour les 12 tonalités, et tu la reconnaîtras dans la suivante.</li>
+      </ol>
+
+      <div class="ate-sub">Par quoi commencer (vraiment)</div>
+      <p class="prose">Ne commence pas par la chanson que tu aimes le plus : commence par la plus <b>simple</b>. Trois accords, tempo lent, guitare ou piano bien audible, pas de modulation. Folk, country, blues, chanson française des années 70, gospel. Une fois trois chansons relevées, la quatrième prend deux fois moins de temps — c'est mécanique.</p>
+      <div class="hint">⚠️ La tentation, à ce stade, c'est de refaire les exercices parce qu'ils sont confortables et qu'on y gagne des points. Les exercices ne valent que s'ils servent le <b>carnet</b>. Le chiffre qui compte dans cette app n'est pas ton XP : c'est le <b>nombre de vraies chansons</b> que tu as relevées.</p>
+      <button class="btn big primary" id="go">📓 Ouvrir le carnet</button>
+      <button class="btn big ghost" id="quit">Terminer</button>`);
+    btn("go", () => { markF("rl:methode"); exRelCarnet(); });
+    btn("quit", () => { markF("rl:methode"); closeSheet(); });
+  }
+
+  /* ===================== LE CARNET DES RELEVÉS ===================== */
+  function carnet() { const S = st(); if (!S.carnet) S.carnet = []; return S.carnet; }
+  /* échappement COMPLET : l'apostrophe comprise — un titre comme « L'Hymne à l'amour »
+     casserait un attribut value="…" sans elle. */
+  const esc = (x) => String(x == null ? "" : x)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  function exRelCarnet() {
+    openSheet("📓 Le carnet des relevés");
+    let tk = "C", tm = "maj";
+    const form = { t: "", a: "", g: "", n: "" };
+    draw();
+
+    /* choisir une tonalité redessine la feuille : sans ça, ce qu'il a tapé disparaît */
+    function lire() {
+      ["t", "a", "g", "n"].forEach((k) => {
+        const e = $("#rl" + k.toUpperCase());
+        if (e) form[k] = e.value;
+      });
+    }
+    function draw(msg, vider) {
+      if (!vider) lire();
+      const C = carnet();
+      paint(`<div class="ex-intro big">${C.length === 0
+        ? "Vide. C'est normal, et c'est tout l'enjeu : cette page ne se remplit pas en cliquant, elle se remplit en <b>relevant une vraie chanson</b>."
+        : `<b>${C.length}</b> chanson${C.length > 1 ? "s" : ""} relevée${C.length > 1 ? "s" : ""}. C'est le seul chiffre de cette app qui prouve quelque chose.`}</div>
+
+        <div class="ate-sub">Ajouter un relevé</div>
+        <input class="rl-in" id="rlT" placeholder="Titre" autocomplete="off" value="${esc(form.t)}">
+        <input class="rl-in" id="rlA" placeholder="Artiste" autocomplete="off" value="${esc(form.a)}">
+        <div class="ate-sub">Sa tonalité</div>
+        <div class="kchips">${CIRCLE.map((k) =>
+          `<button class="kchip${k === tk ? " l1" : ""}" data-tk="${k}">${A.disp(k)}</button>`).join("")}</div>
+        <div class="dq-choices">
+          <button class="dq-c${tm === "maj" ? " ok" : ""}" data-tm="maj">Majeur</button>
+          <button class="dq-c${tm === "min" ? " ok" : ""}" data-tm="min">Mineur</button></div>
+        <div class="ate-sub">Les degrés que tu as trouvés</div>
+        <input class="rl-in" id="rlG" placeholder="I – V – vi – IV" autocomplete="off" value="${esc(form.g)}">
+        <input class="rl-in" id="rlN" placeholder="Ce qui t'a bloqué (facultatif)" autocomplete="off" value="${esc(form.n)}">
+        <button class="btn big primary" id="rlAdd">+ Ajouter au carnet</button>
+        ${msg ? `<div class="fb-ok">${msg}</div>` : ""}
+
+        ${C.length ? `<div class="ate-sub">Tes relevés</div>
+          ${C.map((r, i) => `<div class="role-card">
+            <div class="rc-h">${esc(r.t)}${r.a ? ` <span class="mc-alias">— ${esc(r.a)}</span>` : ""}</div>
+            <div class="rc-b"><b>${A.disp(r.k)} ${r.m === "min" ? "mineur" : "majeur"}</b> · ${esc(r.g) || "—"}
+              ${r.n ? `<br><i>${esc(r.n)}</i>` : ""}<br><small class="mc-alias">${r.d}</small></div>
+            <div class="btnrow2"><button class="btn" data-del="${i}">Supprimer</button></div>
+          </div>`).join("")}
+          <div class="ate-sub">Exporter</div>
+          <p class="prose">Copie ce bloc et colle-le-moi : je peux te dire ce que tes relevés ont en commun, et quoi attaquer ensuite.</p>
+          <div class="pre" id="rlExp">${C.map((r) => esc(`- ${r.t}${r.a ? " — " + r.a : ""} · ${A.disp(r.k)} ${r.m === "min" ? "mineur" : "majeur"} · ${r.g}${r.n ? " · blocage : " + r.n : ""}`)).join("<br>")}</div>` : ""}
+
+        ${C.length >= 3 ? `<div class="hint">Trois chansons relevées. <b>La suite n'est plus dans cette app</b> : prends la plus simple des trois et joue-la pour quelqu'un, en entier, sans t'arrêter quand tu te trompes.</div>` : ""}
+        <button class="btn big ghost" id="quit">Fermer</button>`);
+
+      on("[data-tk]", (el) => { tk = el.dataset.tk; draw(); });
+      on("[data-tm]", (el) => { tm = el.dataset.tm; draw(); });
+      on("[data-del]", (el) => { carnet().splice(+el.dataset.del, 1); A.save(); draw(); });
+      btn("rlAdd", () => {
+        lire();
+        const titre = form.t.trim();
+        if (!titre) { draw(); const e = $("#rlT"); if (e) { e.focus(); e.placeholder = "Il faut au moins un titre"; } return; }
+        const d = new Date();
+        carnet().unshift({ t: titre, a: form.a.trim(), k: tk, m: tm, g: form.g.trim(), n: form.n.trim(),
+          d: d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()) });
+        A.save();
+        const nb = carnet().length;
+        if (nb === 1) { setDone("rl:carnet"); A.earnXP(50); }
+        else A.earnXP(20);
+        if (SLOT) seanceMark(SLOT);
+        form.t = form.a = form.g = form.n = "";
+        draw(nb === 1 ? "🎉 Premier relevé au carnet. C'est la ligne la plus importante de toute l'app."
+          : "✅ Ajouté. " + nb + " au total.", true);
+      });
+      btn("quit", closeSheet);
+    }
+  }
+
+  /* ---------------------------- carte du chantier ---------------------------- */
+  function cardRelever() {
+    const flags = ["rl:1", "rl:2", "rl:3:1", "rl:3:2", "rl:3:3", "rl:4", "rl:5", "rl:6"];
+    const done = flags.filter(isDone).length;
+    const nb = carnet().length;
+    return `<div class="ate-card">
+      <div class="ate-h"><span class="ate-e">👂</span><div><div class="ate-t">Le relevé</div>
+        <div class="ate-s">Trouver les accords <b>à l'oreille</b>. Là où la théorie arrête d'être une connaissance.</div></div>
+        <span class="ate-c">${done}/8</span></div>
+      <div class="ate-sub">👂 L'oreille — tout se répond en écoutant</div>
+      <div class="ate-rows">
+        ${row("rel1", isDone("rl:1") ? "✅" : "🏠", "Trouver la maison", "La tonique d'une grille, parmi trois notes", recTxt("rel1", "/8"))}
+        ${row("rel2", isDone("rl:2") ? "✅" : "🌓", "Majeur ou mineur ?", "La tonalité, pas l'accord", recTxt("rel2", "/8"))}
+        ${REL_DEG_LV.map((L, k) => row("rel3-" + (k + 1), isDone("rl:3:" + (k + 1)) ? "✅" : "①②③"[k],
+          "Le degré · niveau " + (k + 1) + " · " + L.n, "Le I, puis un accord : lequel ?", recTxt("rel3:" + (k + 1), "/10"))).join("")}
+        ${row("rel4", isDone("rl:4") ? "✅" : "🎼", "Relever la grille", "Quatre accords, tu poses les quatre degrés", recTxt("rel4", "/6"))}
+        ${row("rel5", isDone("rl:5") ? "✅" : "👻", "L'intrus", "L'accord hors tonalité : lequel, et pourquoi", recTxt("rel5", "/8"))}
+        ${row("rel6", isDone("rl:6") ? "✅" : "🏁", "Le relevé complet", "Aucune indication : mode, tonique, degrés — au chrono", recTxt("rel6", "/16"))}
+      </div>
+      <div class="ate-sub">🎧 En vrai — le seul endroit qui compte</div>
+      <div class="ate-rows">
+        ${row("relmethode", isDone("rl:methode") ? "✅" : "🧭", "La méthode", "Le protocole en 6 gestes pour une vraie chanson", "")}
+        ${row("relcarnet", nb ? "✅" : "📓", "Le carnet des relevés", nb ? nb + " chanson" + (nb > 1 ? "s" : "") + " relevée" + (nb > 1 ? "s" : "") + " — continue" : "Vide. C'est ici que ça devient réel.", nb ? nb + " ♪" : "")}
+      </div></div>`;
+  }
+
   /* =========================================================================
      SÉANCE DU JOUR — cinq lignes, figées pour la journée.
      Réviser → voir les fonctions sur le manche → viser → jouer → comprendre.
@@ -2501,11 +3103,20 @@ const LCEx = (function () {
     const L = typeof LESSONS !== "undefined" ? LESSONS.find((l) => !A.S.done[l.id]) : null;
     const FN_SEANCE = [["fonctions", "fn:f1"], ["cadences", "fn:f2"], ["secondaires", "fn:f3"],
       ["emprunts", "fn:f4"], ["reharmo", "fn:f5"], ["qfonc", "fn:fonc"], ["qdeg", "fn:deg"], ["qsec", "fn:sec"]];
+    const RL_SEANCE = [["rel1", "rl:1"], ["rel2", "rl:2"], ["rel3-1", "rl:3:1"], ["rel3-2", "rl:3:2"],
+      ["rel3-3", "rl:3:3"], ["rel4", "rl:4"], ["rel5", "rl:5"], ["rel6", "rl:6"],
+      ["relmethode", "rl:methode"], ["relcarnet", "rl:carnet"]];
     const F = FN_SEANCE.find((x) => !isDone(x[1]));
-    if (F && (!L || dn % 2 === 1)) plan.push({ id: F[0] });
-    else if (L) plan.push({ id: "lesson:" + L.id });
-    else if (dn % 2 === 1) plan.push({ id: ["qfonc", "qdeg", "qsec"][dn % 3] });
-    else plan.push({ id: "key" + ([1, 2, 3, 4].find((k) => !isDone("kf:" + k)) || [3, 4][dn % 2]) });
+    const R = RL_SEANCE.find((x) => !isDone(x[1]));
+    /* trois pistes en rotation : le parcours, les fonctions, le relevé.
+       Aucune ne peut étouffer les autres — surtout pas le relevé, qui est la sortie. */
+    const cand = [];
+    if (L) cand.push("lesson:" + L.id);
+    if (F) cand.push(F[0]);
+    if (R) cand.push(R[0]);
+    if (cand.length) plan.push({ id: cand[dn % cand.length] });
+    else plan.push({ id: ["qfonc", "qdeg", "qsec", "rel4", "rel5", "rel6",
+      "key" + ([1, 2, 3, 4].find((k) => !isDone("kf:" + k)) || 4)][dn % 7] });
     return plan;
   }
 
@@ -2560,6 +3171,22 @@ const LCEx = (function () {
     if (FN_INFO[id]) {
       const f = FN_INFO[id];
       return { e: f[0], cat: "Comprendre", min: 5, titre: f[1], why: f[2] };
+    }
+    const RL_INFO = {
+      rel1:       ["🏠", "Trouver la maison", "La tonique d'une grille, à l'oreille. Le premier geste de tout relevé."],
+      rel2:       ["🌓", "Majeur ou mineur ?", "La tonalité, pas l'accord : où ça se repose."],
+      "rel3-1":   ["🔢", "Le degré · niveau 1", "Le I, puis un accord : lequel ? I, IV, V."],
+      "rel3-2":   ["🔢", "Le degré · niveau 2", "On ajoute le vi et le ii."],
+      "rel3-3":   ["🔢", "Le degré · niveau 3", "Les six degrés, iii compris."],
+      rel4:       ["🎼", "Relever la grille", "Quatre accords entendus, quatre degrés à poser."],
+      rel5:       ["👻", "L'intrus", "L'accord hors tonalité : lequel, et lequel des deux suspects."],
+      rel6:       ["🏁", "Le relevé complet", "Aucune indication : mode, tonique, degrés. Au chrono."],
+      relmethode: ["🧭", "La méthode", "Le protocole en 6 gestes pour une vraie chanson."],
+      relcarnet:  ["📓", "Relever une vraie chanson", "Pas un exercice : une chanson, la tienne, dans le carnet."]
+    };
+    if (RL_INFO[id]) {
+      const r = RL_INFO[id];
+      return { e: r[0], cat: id === "relcarnet" ? "En vrai" : "Oreille", min: id === "relcarnet" ? 20 : 5, titre: r[1], why: r[2] };
     }
     return { e: "•", cat: "", min: 0, titre: id, why: "" };
   }
