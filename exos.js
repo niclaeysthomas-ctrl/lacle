@@ -126,8 +126,8 @@ const LCEx = (function () {
 
   function view() {
     return `<div class="v-head"><h1>⚡ L'Atelier</h1>
-      <p class="v-sub">Ici on ne cherche pas à comprendre : on <b>automatise</b>. Cinq chantiers, dans l'ordre — et on ne coche rien en trichant.</p></div>
-      ${cardGammes()}${cardPentas()}${cardManche()}${cardTonalite()}${cardViser()}
+      <p class="v-sub">Ici on ne cherche pas à comprendre : on <b>automatise</b>. Six chantiers, dans l'ordre — et on ne coche rien en trichant.</p></div>
+      ${cardGammes()}${cardPentas()}${cardManche()}${cardTonalite()}${cardViser()}${cardFonctions()}
       <div class="ate-sep">Drills libres · questions infinies</div>
       ${A.drillsSection()}`;
   }
@@ -241,6 +241,14 @@ const LCEx = (function () {
     if (id.indexOf("bouge") === 0)  return exBouge(+id.slice(5));
     if (id === "viser")    return exViser();
     if (id === "blue")     return exBlue();
+    if (id === "fonctions")   return exFonctions();
+    if (id === "cadences")    return exCadences();
+    if (id === "secondaires") return exSecondaires();
+    if (id === "emprunts")    return exEmprunts();
+    if (id === "reharmo")     return exReharmo();
+    if (id === "qfonc")       return exQFonc();
+    if (id === "qdeg")        return exQDeg();
+    if (id === "qsec")        return exQSec();
   }
 
   /* =========================================================================
@@ -1871,6 +1879,565 @@ const LCEx = (function () {
       </div></div>`;
   }
 
+
+  /* =========================================================================
+     CHANTIER 6 — LES FONCTIONS
+     Pourquoi les accords BOUGENT. La couche que ni Piano Dojo ni Shred n'ont :
+     fonctions, cadences, dominantes secondaires, emprunts, substitution
+     tritonique, réharmonisation. Tout calculé depuis LC : les 12 tonalités
+     marchent sans table, et l'épellation reste exacte (Si♭, pas La♯).
+     ========================================================================= */
+  let FKEY = "C";
+  /* Une fiche n'a pas d'écran .ex-win : c'est le bouton du bas qui vaut « lue ».
+     Il coche donc aussi la ligne de séance, comme le font les leçons. */
+  const markF = (k) => {
+    if (!isDone(k)) { setDone(k); A.earnXP(10); }
+    if (SLOT) seanceMark(SLOT);
+  };                                   // tonalité des fiches
+
+  /* --- voicing simple : basse + octave + accord au milieu --- */
+  function chMidis(root, qual) {
+    const pcs = LC.spellChord(root, qual).map(PCS);
+    const out = [36 + pcs[0], 48 + pcs[0]];
+    let prev = 59 + pcs[0] - 12;
+    pcs.forEach((pc) => { let m = 60 + pc; while (m <= prev) m += 12; out.push(m); prev = m; });
+    return out;
+  }
+  function progPlay(list, spb) {
+    LC.audio.resume(); spb = spb || 1.15;
+    list.forEach((c, i) => {
+      chMidis(c.root, c.qual).forEach((m, k) =>
+        LC.audio.note(m, spb * 0.92, i * spb + k * 0.015, m < 50 ? 0.1 : 0.07));
+    });
+  }
+  const progStr  = (list) => list.map((c) => c.root + ":" + c.qual).join("|");
+  const progFrom = (s) => s.split("|").map((x) => { const p = x.split(":"); return { root: p[0], qual: p[1] }; });
+  const lbl  = (c) => A.disp(c.root) + LC.QUAL_LABEL[c.qual];
+  /* Mi♯, Do♭, Si♯, double bémol… : c'est l'épellation juste, mais personne ne l'écrit
+     sur une grille. On donne le nom pratique à côté — même touche, autre nom. */
+  function enh(root) {
+    const exotique = /bb|x/.test(root) || ["Cb", "Fb", "B#", "E#"].indexOf(root) >= 0;
+    if (!exotique) return null;
+    const pc = PCS(root);
+    return A.disp(LC.SHARP[pc].length === 1 ? LC.SHARP[pc] : LC.FLAT[pc]);
+  }
+  const lblA = (c) => { const e = enh(c.root); return lbl(c) + (e ? ` <small class="mc-alias">(= ${e}${LC.QUAL_LABEL[c.qual]})</small>` : ""); };
+  const line = (list) => list.map(lbl).join(" – ");
+  /* un bouton qui joue une suite d'accords */
+  function pbtn(list, txt, cls) {
+    return `<button class="btn ${cls || ""}" data-prog="${progStr(list)}">${txt || "▶ " + line(list)}</button>`;
+  }
+  function wireProg() { on("[data-prog]", (el) => progPlay(progFrom(el.dataset.prog))); }
+
+  /* --- outils d'harmonie fonctionnelle, tous calculés --- */
+  const FONC = ["T", "S", "T", "S", "D", "T", "D"];          // I ii iii IV V vi vii°
+  const FONC_NOM = { T: "Tonique", S: "Sous-dominante", D: "Dominante" };
+  const FONC_TXT = {
+    T: "le repos. On y est chez soi — et on s'y ennuie si on y reste.",
+    S: "le départ. On a quitté la maison, rien ne tire encore.",
+    D: "la tension. Ça <b>veut</b> revenir, et l'oreille sait déjà où."
+  };
+  /* LC.diatonicChords rend {root, quality, roman…} ; ici tout le chantier parle en {root, qual} */
+  const deg7 = (t) => LC.diatonicChords(t).map((c) => ({ root: c.root, qual: c.quality, roman: c.roman, degree: c.degree }));
+  /* la même chose avec les septièmes diatoniques : Imaj7 ii7 iii7 IVmaj7 V7 vi7 vii-m7♭5 */
+  const SEV_Q = ["maj7", "min7", "min7", "maj7", "dom7", "min7", "m7b5"];
+  const deg7s = (t) => deg7(t).map((c, i) => ({ root: c.root, qual: SEV_Q[i], roman: c.roman, degree: i }));
+  /* dominante secondaire d'un degré : l'accord 7 une quinte au-dessus de sa fondamentale */
+  function secDom(root) {
+    const fifth = LC.majorScale(root)[4];                    // la quinte juste, bien épelée
+    return { root: fifth, qual: "dom7" };
+  }
+  /* substitution tritonique : le 7 dont la fondamentale est un triton plus loin */
+  function triSub(root) {
+    const pc = (PCS(root) + 6) % 12;
+    const flat = LC.FLAT[pc], sharp = LC.SHARP[pc];
+    return { root: flat.length > 1 ? flat : sharp, qual: "dom7" };
+  }
+  /* emprunts au mineur parallèle (les 5 qui servent vraiment) */
+  function emprunts(t) {
+    const sc = LC.naturalMinor(t);                           // 1 2 ♭3 4 5 ♭6 ♭7
+    return [
+      { roman: "iv",   c: { root: sc[3], qual: "min" },  txt: "le IV qui devient mineur. <b>L'emprunt le plus utilisé de toute la musique populaire</b> — c'est le soupir juste avant le retour au I." },
+      { roman: "♭VII", c: { root: sc[6], qual: "maj" },  txt: "arrive du rock et du folk. Il remplace le V sans sa tension : ça retombe sur le I en pente douce, pas en chute." },
+      { roman: "♭VI",  c: { root: sc[5], qual: "maj" },  txt: "le son cinéma. Il éclaire par en dessous — et il prépare magnifiquement le V." },
+      { roman: "♭III", c: { root: sc[2], qual: "maj" },  txt: "brutal et efficace : il vient du mineur parallèle et fait basculer la couleur en un accord." },
+      { roman: "ii∅",  c: { root: sc[1], qual: "m7b5" }, txt: "le ii du mineur. Posé avant le V, il annonce une résolution <b>mineure</b> même si le morceau est majeur." }
+    ];
+  }
+
+  /* --------- sélecteur de tonalité commun aux fiches --------- */
+  function keyPicker() {
+    return `<div class="ate-sub">La tonalité des exemples</div>
+      <div class="kchips">${CIRCLE.map((t) =>
+        `<button class="kchip${t === FKEY ? " l1" : ""}" data-fkey="${t}">${A.disp(t)}</button>`).join("")}</div>`;
+  }
+  function wireKey(redraw) { on("[data-fkey]", (el) => { FKEY = el.dataset.fkey; redraw(); }); }
+
+  /* =========================== FICHE 1 — LES FONCTIONS =========================== */
+  function exFonctions() {
+    openSheet("🏛 Les trois fonctions");
+    draw();
+    function draw() {
+      const D = deg7(FKEY), S7 = deg7s(FKEY);
+      const I = { root: FKEY, qual: "maj" }, IV = D[3], V7 = S7[4], vi = D[5];
+      paint(`<div class="ex-intro big">Tu sais <b>quels</b> accords vont ensemble (les 7 degrés). Il te manque le plus utile : <b>pourquoi ils bougent</b>. Une chanson n'est pas une liste d'accords, c'est un <b>aller-retour entre repos et tension</b> — et il n'y a que trois rôles.</div>
+
+        <div class="role-card">
+          <div class="rc-h">T — Tonique · le repos</div><div class="rc-b">${FONC_TXT.T} Degrés <b>I</b>, <b>vi</b>, <b>iii</b>.</div>
+          <div class="rc-h">S — Sous-dominante · le départ</div><div class="rc-b">${FONC_TXT.S} Degrés <b>IV</b> et <b>ii</b>.</div>
+          <div class="rc-h">D — Dominante · la tension</div><div class="rc-b">${FONC_TXT.D} Degrés <b>V</b> et <b>vii°</b>.</div>
+        </div>
+
+        <div class="formula">T → S → D → T</div>
+        <p class="prose">C'est le trajet par défaut de la musique occidentale. Tu peux sauter la S (T → D → T), tu peux rester en T, tu peux retarder le retour — mais <b>tu ne remontes pas</b> de D vers S sans que ça sonne bizarre. Là est toute l'affaire : les fonctions ont un <b>sens de circulation</b>.</p>
+
+        ${keyPicker()}
+        <div class="ate-sub">Les 7 degrés de ${A.disp(FKEY)} majeur, par fonction</div>
+        <table class="tbl chords"><tr><th>Degré</th><th>Accord</th><th>Fonction</th><th>Ce qu'il fait</th><th></th></tr>
+        ${D.map((c, i) => `<tr><td class="rom">${c.roman}</td><td><b>${lbl(c)}</b></td>
+          <td><b>${FONC_NOM[FONC[i]]}</b></td><td>${[
+            "le chez-soi. Tout revient là.",
+            "le meilleur tremplin vers le V (c'est le ii–V).",
+            "tonique déguisée : elle ressemble au I sans en avoir le poids. La plus ambiguë des sept.",
+            "le grand départ. Il peut aussi rentrer seul au I (cadence plagale).",
+            "la tension pure. Ajoute-lui la 7e et elle devient irrésistible.",
+            "le repos triste : même fonction que le I, couleur mineure. D'où l'effet du V→vi.",
+            "dominante sans fondamentale. Rare tel quel, on lui préfère le V7."][i]}</td>
+          <td>${pbtn([c], "▶", "mini")}</td></tr>`).join("")}</table>
+
+        <div class="ate-sub">Écoute la circulation</div>
+        <div class="btnrow2">
+          ${pbtn([I, IV, V7, I], "▶ T → S → D → T (le trajet complet)")}
+          ${pbtn([I, V7, I], "▶ T → D → T (sans le départ)")}
+          ${pbtn([I, V7, IV, I], "▶ T → D → S → T (à contresens)")}
+        </div>
+        <div class="hint">Le troisième est le seul qui te met mal à l'aise. Rien n'est « faux » dedans : ce sont les mêmes accords. C'est l'<b>ordre</b> qui cloche — la preuve que la fonction existe.</div>
+
+        <div class="ate-sub">Le raccourci qui sert tous les jours</div>
+        <ol class="rules">
+          <li>Un accord te paraît bizarre dans une chanson ? Demande-toi <b>quelle fonction</b> il remplit, pas quel nom il porte.</li>
+          <li>Deux accords de <b>même fonction</b> se remplacent presque toujours : ${lbl(I)} ↔ ${lbl(vi)}, ${lbl(IV)} ↔ ${lbl(D[1])}. Voilà ta première réharmonisation, gratuite.</li>
+          <li>Ce qui fait avancer une chanson, ce n'est pas la quantité d'accords : c'est le <b>retour</b> de la tension vers le repos.</li>
+        </ol>
+        <button class="btn big primary" id="go">Aux cadences →</button>
+        <button class="btn big ghost" id="quit">Terminer</button>`);
+      wireProg(); wireKey(draw);
+      btn("go", () => { markF("fn:f1"); exCadences(); }); btn("quit", () => { markF("fn:f1"); closeSheet(); });
+    }
+  }
+
+  /* =========================== FICHE 2 — LES CADENCES =========================== */
+  function exCadences() {
+    openSheet("🚪 Les cinq cadences");
+    draw();
+    function draw() {
+      const D = deg7(FKEY), S7 = deg7s(FKEY);
+      const I = { root: FKEY, qual: "maj" }, ii = S7[1], IV = D[3], V = D[4], V7 = S7[4], vi = D[5];
+      const E = emprunts(FKEY);
+      /* l'andalouse vit dans la RELATIVE MINEURE : Lam – Sol – Fa – Mi (pas les emprunts du majeur) */
+      const rel = LC.relativeMinor(FKEY), mn = LC.naturalMinor(rel);
+      const AND = [{ root: rel, qual: "min" }, { root: mn[6], qual: "maj" }, { root: mn[5], qual: "maj" }, { root: mn[4], qual: "maj" }];
+      const CAD = [
+        { n: "La cadence parfaite", f: "V → I", p: [V7, I], pre: [ii, V7, I],
+          t: "La porte qui se ferme. Le triton du V7 se résout, l'oreille est rassasiée : <b>c'est fini</b>. C'est la fin de 90 % des chansons, et c'est aussi pour ça qu'on ne la met pas au milieu d'un couplet.", ou: "la dernière mesure de presque tout." },
+        { n: "La cadence plagale", f: "IV → I", p: [IV, I], pre: [I, IV, I],
+          t: "Le retour <b>sans tension</b> : le IV n'a pas de triton, il ne tire pas, il se contente de rentrer. Effet de calme, de résolu, parfois de solennel.", ou: "l'« amen » des cantiques — et toute la pop douce." },
+        { n: "La cadence rompue", f: "V → vi", p: [V7, vi], pre: [ii, V7, vi],
+          t: "Tout annonce le I… et on tombe sur le <b>vi</b>. Même fonction (repos), autre couleur (mineur). La phrase ne se ferme pas : on est obligé de continuer.", ou: "le truc numéro un pour rallonger un morceau sans ennuyer." },
+        { n: "La demi-cadence", f: "… → V", p: [I, IV, V], pre: [vi, IV, V],
+          t: "On s'arrête <b>sur</b> la tension. Rien n'est résolu : c'est une virgule, pas un point. C'est ce qui fait qu'un couplet appelle un refrain.", ou: "la fin d'un couplet, juste avant que ça reparte." },
+        { n: "La cadence andalouse", f: "i → ♭VII → ♭VI → V", p: AND, pre: null, t: "Quatre accords qui descendent par degrés jusqu'à la dominante. Elle tourne en boucle sans jamais se fermer : la tension revient toujours au même endroit.", ou: "le flamenco, « Hit the Road Jack », « Sultans of Swing »." }
+      ];
+      paint(`<div class="ex-intro big">Une cadence, c'est la <b>ponctuation</b> de la musique : la façon dont une phrase s'arrête. Cinq suffisent pour lire à peu près tout ce que tu joues.</div>
+        ${keyPicker()}
+        ${CAD.map((c) => `<div class="role-card">
+          <div class="rc-h">${c.n} <span class="deg-badge">${c.f}</span></div>
+          <div class="rc-b">${c.t}<br><i>Où tu l'as entendue : ${c.ou}</i></div>
+          <div class="btnrow2">${pbtn(c.p, "▶ " + line(c.p))}${c.pre ? pbtn(c.pre, "▶ avec son élan : " + line(c.pre)) : ""}</div>
+        </div>`).join("")}
+        <div class="ate-sub">Le test qui rend la chose utile</div>
+        <p class="prose">Prends n'importe quelle chanson que tu joues. Regarde <b>uniquement</b> les deux derniers accords de chaque partie (fin de couplet, fin de refrain, fin de morceau). Tu viens de trouver ses cadences — et tu sais maintenant pourquoi le couplet « appelle » le refrain : il finit sur une demi-cadence.</p>
+        <div class="hint">La cadence rompue est ton outil de composition le moins cher : partout où tu allais finir sur le I, essaie le vi. La phrase repart toute seule.</div>
+        <button class="btn big primary" id="go">Aux dominantes secondaires →</button>
+        <button class="btn big ghost" id="quit">Terminer</button>`);
+      wireProg(); wireKey(draw);
+      btn("go", () => { markF("fn:f2"); exSecondaires(); }); btn("quit", () => { markF("fn:f2"); closeSheet(); });
+    }
+  }
+
+  /* ==================== FICHE 3 — LE TRITON & LES DOMINANTES SECONDAIRES ==================== */
+  function exSecondaires() {
+    openSheet("🎯 Dominantes secondaires");
+    draw();
+    function draw() {
+      const D = deg7(FKEY), S7 = deg7s(FKEY);
+      const I = { root: FKEY, qual: "maj" }, V7 = S7[4];
+      const tri = LC.spellChord(V7.root, "dom7");             // 1 3 5 ♭7 du V7
+      /* les cibles qui acceptent une dominante secondaire : ii iii IV V vi (pas le vii°) */
+      const CIB = [1, 2, 3, 4, 5].map((i) => {
+        const c = D[i], sd = secDom(c.root);
+        return { i, roman: c.roman, cible: c, sd, nom: "V/" + c.roman };
+      });
+      paint(`<div class="ex-intro big">Une seule idée, et elle ouvre la porte à la moitié de la musique qui te semblait « compliquée » : <b>n'importe quel accord peut avoir sa propre dominante</b>. Pas seulement le I.</div>
+
+        ${keyPicker()}
+        <div class="ate-sub">D'abord : d'où vient la tension</div>
+        <p class="prose">Le V7 de ${A.disp(FKEY)} est <b>${lbl(V7)}</b> = ${tri.map((n) => A.disp(n)).join(" – ")}. Entre sa <b>tierce</b> (${A.disp(tri[1])}) et sa <b>septième</b> (${A.disp(tri[3])}) il y a un <b>triton</b> : trois tons pile, l'intervalle le plus instable de la musique. Ces deux notes sont à un demi-ton de leur destination, et elles y vont en sens contraires.</p>
+        <div class="formula">${A.disp(tri[1])} monte d'un ½ ton · ${A.disp(tri[3])} descend d'un ½ ton → l'accord de ${A.disp(FKEY)}</div>
+        <div class="btnrow2">${pbtn([V7, I], "▶ La résolution")}${pbtn([D[4], I], "▶ Sans la 7e (mou)")}</div>
+        <div class="hint">Enlève la septième et la tension s'effondre : c'est <b>elle</b> qui fabrique le triton. Voilà pourquoi le V se joue en 7 partout, du blues au jazz.</div>
+
+        <div class="ate-sub">Ensuite : le même mécanisme, braqué ailleurs</div>
+        <p class="prose">Si une dominante tire vers le I, on peut en fabriquer une qui tire vers <b>n'importe quel</b> degré. On l'écrit <b>V/x</b> (« le cinq de x ») : c'est l'accord de 7e construit une <b>quinte au-dessus</b> de l'accord visé. Le morceau reste dans ${A.disp(FKEY)} : c'est une visite, pas un déménagement.</p>
+        <table class="tbl chords"><tr><th>Nom</th><th>Accord</th><th>Il annonce</th><th>À l'oreille</th><th></th></tr>
+        ${CIB.map((x) => `<tr><td class="rom">${x.nom}</td><td><b>${lblA(x.sd)}</b></td><td><b>${lbl(x.cible)}</b> (${x.roman})</td>
+          <td>${["le plus doux : il précède le ii, donc le ii–V devient une chaîne.",
+                "sombre et inattendu — beaucoup de Beatles.",
+                "le plus connu : le I devient un accord 7 et tout bascule vers le IV. Le blues vit là-dessus.",
+                "il annonce le V, donc une double tension d'affilée. Le son « cabaret ».",
+                "il rend le vi <b>dramatique</b> au lieu de mélancolique."][x.i - 1]}</td>
+          <td>${pbtn([x.sd, x.cible], "▶", "mini")}</td></tr>`).join("")}</table>
+
+        <div class="ate-sub">La preuve par la grille</div>
+        <div class="btnrow2">
+          ${pbtn([I, D[5], D[3], D[4]], "▶ La grille de base (I – vi – IV – V)")}
+          ${pbtn([I, secDom(D[5].root), D[5], D[3]], "▶ Avec V/vi inséré")}
+          ${pbtn([I, { root: FKEY, qual: "dom7" }, D[3], D[4]], "▶ Le I devient 7 (= V/IV)")}
+        </div>
+        <div class="hint">Écoute la troisième : tu n'as changé <b>qu'une note</b> (ajouté la ♭7 au premier accord) et le IV n'arrive plus, il est <b>appelé</b>. C'est le geste de réharmonisation le moins cher qui existe.</div>
+
+        <div class="ate-sub">Comment la repérer dans une chanson</div>
+        <ol class="rules">
+          <li>Un accord <b>majeur ou 7</b> qui n'appartient pas à la tonalité.</li>
+          <li>Regarde l'accord <b>juste après</b> : si sa fondamentale est une quarte au-dessus (= une quinte en dessous), c'était une dominante secondaire.</li>
+          <li>Si ça ne colle pas, c'est un <b>emprunt modal</b> — la fiche suivante.</li>
+        </ol>
+        <button class="btn big primary" id="go">Aux emprunts →</button>
+        <button class="btn big ghost" id="quit">Terminer</button>`);
+      wireProg(); wireKey(draw);
+      btn("go", () => { markF("fn:f3"); exEmprunts(); }); btn("quit", () => { markF("fn:f3"); closeSheet(); });
+    }
+  }
+
+  /* ==================== FICHE 4 — EMPRUNTS MODAUX & SUBSTITUTION TRITONIQUE ==================== */
+  function exEmprunts() {
+    openSheet("🌑 Emprunts & substitution");
+    draw();
+    function draw() {
+      const D = deg7(FKEY), S7 = deg7s(FKEY);
+      const I = { root: FKEY, qual: "maj" }, IV = D[3], V7 = S7[4], ii = S7[1];
+      const E = emprunts(FKEY), sub = triSub(V7.root);
+      const subN = LC.spellChord(sub.root, "dom7"), v7N = LC.spellChord(V7.root, "dom7");
+      paint(`<div class="ex-intro big">Deux façons de faire entrer des accords « hors tonalité » sans que ça sonne faux. Ce sont elles qui séparent une grille d'élève d'une grille de disque.</div>
+
+        ${keyPicker()}
+        <div class="ate-sub">1. L'emprunt modal — voler au mineur parallèle</div>
+        <p class="prose">${A.disp(FKEY)} majeur et ${A.disp(FKEY)} mineur partagent la même <b>fondamentale</b> (pas la même armure : ce sont des <i>parallèles</i>, pas des relatives). Rien n'interdit d'aller chercher un accord chez le voisin et de le poser dans ton morceau majeur. L'oreille l'accepte parce que la tonique n'a pas bougé.</p>
+        <table class="tbl chords"><tr><th>Degré</th><th>Accord</th><th>Ce qu'il fait</th><th></th></tr>
+        ${E.map((x) => `<tr><td class="rom">${x.roman}</td><td><b>${lblA(x.c)}</b></td><td>${x.txt}</td>
+          <td>${pbtn([I, x.c, I], "▶", "mini")}</td></tr>`).join("")}</table>
+        <div class="btnrow2">
+          ${pbtn([I, IV, I], "▶ " + line([I, IV, I]) + " (normal)")}
+          ${pbtn([I, IV, E[0].c, I], "▶ avec le IV mineur (l'emprunt roi)")}
+        </div>
+        <div class="hint">Le <b>IV mineur</b> mérite à lui seul une semaine de travail : c'est l'accord qui fait pleurer dans « Creep », « Blackbird », et la moitié des ballades. Un seul demi-ton change — la tierce du IV descend.</div>
+
+        <div class="ate-sub">2. La substitution tritonique</div>
+        <p class="prose">Souviens-toi : la tension du V7 ne vient pas de sa fondamentale, elle vient du <b>triton</b> entre sa tierce et sa septième. Or il existe <b>un autre accord 7</b> qui contient exactement le même triton : celui dont la fondamentale est un triton plus loin.</p>
+        <div class="formula">${lbl(V7)} (${A.disp(v7N[1])} + ${A.disp(v7N[3])}) &nbsp;=&nbsp; ${lblA(sub)} (${A.disp(subN[3])} + ${A.disp(subN[1])})</div>
+        <p class="prose"><small>Les deux notes sont les mêmes <b>touches</b> ; leurs noms changent parce qu'elles changent de rôle (la tierce de l'un est la septième de l'autre). C'est l'<b>enharmonie</b> : un seul son, deux orthographes.</small></p>
+        <p class="prose">Les deux notes qui font le travail sont les mêmes, à l'échange près : la tierce de l'un est la septième de l'autre. Tu peux donc remplacer <b>${lbl(V7)}</b> par <b>${lbl(sub)}</b> — même résolution, et en prime la basse descend <b>d'un demi-ton</b> sur le I au lieu de sauter d'une quarte.</p>
+        <div class="btnrow2">
+          ${pbtn([ii, V7, I], "▶ ii – V – I normal")}
+          ${pbtn([ii, sub, I], "▶ ii – ♭II7 – I (substitué)")}
+        </div>
+        <div class="hint">C'est LE son « jazz » que tu entends sans savoir le nommer : la basse qui glisse chromatiquement vers l'accord d'arrivée. Et ça marche sur <b>n'importe quelle</b> dominante, y compris les secondaires.</div>
+
+        <div class="ate-sub">Comment savoir lequel des deux tu entends</div>
+        <ol class="rules">
+          <li>Accord étranger <b>majeur ou 7</b>, suivi d'un accord une quarte au-dessus → <b>dominante secondaire</b>.</li>
+          <li>Accord étranger suivi d'un accord un <b>demi-ton en dessous</b> → <b>substitution tritonique</b>.</li>
+          <li>Accord étranger <b>mineur</b>, ou majeur sur ♭III / ♭VI / ♭VII → <b>emprunt modal</b>.</li>
+        </ol>
+        <button class="btn big primary" id="go">À la réharmonisation →</button>
+        <button class="btn big ghost" id="quit">Terminer</button>`);
+      wireProg(); wireKey(draw);
+      btn("go", () => { markF("fn:f4"); exReharmo(); }); btn("quit", () => { markF("fn:f4"); closeSheet(); });
+    }
+  }
+
+  /* ==================== FICHE 5 — LA RÉHARMONISATION ==================== */
+  function exReharmo() {
+    openSheet("🎨 Réharmoniser");
+    draw();
+    function draw() {
+      const D = deg7(FKEY), S7 = deg7s(FKEY);
+      const I = { root: FKEY, qual: "maj" }, ii = D[1], iii = D[2], IV = D[3], V = D[4], vi = D[5];
+      const I7 = S7[0], ii7 = S7[1], IV7 = S7[3], V7 = S7[4], vi7 = S7[5];
+      const E = emprunts(FKEY), sub = triSub(V.root);
+      const BASE = [I, vi, IV, V];
+      const G = [
+        { n: "1. Ajouter les septièmes", p: [I7, vi7, IV7, V7],
+          t: "Le geste gratuit. Chaque accord garde sa fonction, mais gagne une couleur. <b>Attention</b> : le I et le IV prennent une 7e <b>majeure</b>, le V une 7e <b>mineure</b>. Se tromper là, c'est transformer ton I en dominante." },
+        { n: "2. Remplacer par le relatif", p: [vi, I, ii, V],
+          t: "Deux accords de même fonction se substituent : I ↔ vi, IV ↔ ii. Même trajet fonctionnel, autre couleur — et le morceau démarre en mineur sans changer de tonalité." },
+        { n: "3. Insérer le ii avant le V", p: [I, vi, ii7, V7],
+          t: "La sous-dominante prépare la dominante. Le <b>ii–V</b> est la molécule de base du jazz : partout où il y a un V, tu peux poser son ii devant." },
+        { n: "4. Une dominante secondaire", p: [I, secDom(vi.root), vi, V7],
+          t: "Le vi n'arrive plus : il est <b>annoncé</b>. Un accord étranger, une seconde de tension, et la grille a l'air écrite par quelqu'un d'autre." },
+        { n: "5. La substitution tritonique", p: [I, vi, ii7, sub],
+          t: "Le V7 devient l'accord 7 d'un triton plus loin. Même triton, même résolution, mais la basse <b>glisse d'un demi-ton</b> sur le I." },
+        { n: "6. Un emprunt modal", p: [I, vi, E[0].c, V7],
+          t: "Le IV passe en mineur. Une note bouge, et la grille se met à raconter quelque chose de triste — sans rien perdre de sa logique." },
+        { n: "7. Finir rompu", p: [I, IV, V7, vi],
+          t: "Tu annonces le retour, et tu tombes sur le vi. La grille ne se ferme plus : elle relance. Le moyen le plus simple de rallonger un morceau." },
+        { n: "8. La chaîne de dominantes", p: [secDom(vi.root), vi, secDom(ii.root), ii, V7, I],
+          t: "Chaque accord est annoncé par sa propre dominante. C'est un train : chaque wagon tire le suivant. Spectaculaire, et <b>à doser</b> — au-delà de trois maillons ça devient une démonstration." }
+      ];
+      paint(`<div class="ex-intro big">Réharmoniser, ce n'est pas « mettre des accords compliqués ». C'est <b>changer les accords sans changer la mélodie</b> — donc remplacer un accord par un autre qui remplit la même fonction, ou insérer de la tension là où il n'y en avait pas.</div>
+        ${keyPicker()}
+        <div class="ate-sub">La grille de départ</div>
+        <div class="btnrow2">${pbtn(BASE, "▶ " + line(BASE) + " (I – vi – IV – V)", "primary")}</div>
+        <p class="prose">Huit gestes. Chacun s'applique à cette grille, un par un. Écoute le départ, puis le geste : c'est la <b>différence</b> qu'il faut apprendre à entendre, pas l'accord.</p>
+        ${G.map((g) => `<div class="role-card">
+          <div class="rc-h">${g.n}</div><div class="rc-b">${g.t}</div>
+          <div class="btnrow2">${pbtn(g.p, "▶ " + line(g.p))}${pbtn(BASE, "↩ le départ")}</div>
+        </div>`).join("")}
+        <div class="ate-sub">Les trois règles qui empêchent le carnage</div>
+        <ol class="rules">
+          <li><b>La mélodie décide.</b> Un accord de remplacement doit contenir (ou tolérer) la note que chante la mélodie à cet instant. C'est la seule vraie contrainte.</li>
+          <li><b>Une fonction pour une fonction.</b> On ne met pas une dominante là où il faut du repos : la phrase ne se fermerait plus.</li>
+          <li><b>Un geste à la fois.</b> Une grille réharmonisée de partout ne sonne pas riche, elle sonne instable. Choisis l'endroit — souvent la <b>dernière</b> mesure d'une partie.</li>
+        </ol>
+        <div class="hint">💡 Le chemin honnête : prends une chanson que tu joues déjà, applique le geste 1, joue-la une semaine. Puis le geste 3. Puis le 6. Tu n'as pas besoin des huit — tu as besoin que trois soient dans tes mains.</div>
+        <button class="btn big primary" id="go">À l'exercice →</button>
+        <button class="btn big ghost" id="quit">Terminer</button>`);
+      wireProg(); wireKey(draw);
+      btn("go", () => { markF("fn:f5"); exQFonc(); }); btn("quit", () => { markF("fn:f5"); closeSheet(); });
+    }
+  }
+
+  /* ==================== DRILL A — QUELLE FONCTION ? ==================== */
+  function exQFonc() {
+    openSheet("⚡ Quelle fonction ?");
+    const TOTAL = 10;
+    let n = 0, score = 0, q = null, locked = false;
+    startT(); next();
+
+    function gen() {
+      const t = pick(CIRCLE), d = deg7(t), i = rand(7);
+      return { t, i, c: d[i], roman: d[i].roman, f: FONC[i] };
+    }
+    function next() {
+      if (n >= TOTAL) return finish();
+      n++; locked = false; q = gen(); draw("");
+    }
+    function draw(fb, keep) {
+      paint(`<div class="ecl-top">${n}/${TOTAL} · <b>${score}</b> bonne${score > 1 ? "s" : ""}</div>
+        <div class="dq">Tonalité de <b>${A.disp(q.t)} majeur</b>.<br>L'accord <b>${lbl(q.c)}</b> remplit quelle fonction ?
+          <span class="dq-hint">repos · départ · tension</span></div>
+        <div class="btnrow center">${pbtn([q.c], "▶ Écouter l'accord", "mini")}
+          ${pbtn([{ root: q.t, qual: "maj" }, q.c, { root: q.t, qual: "maj" }], "▶ Dans la tonalité", "mini")}</div>
+        <div class="dq-choices">${["T", "S", "D"].map((f) =>
+          `<button class="dq-c" data-v="${f}">${FONC_NOM[f]}</button>`).join("")}</div>
+        <div class="dq-fb">${fb}</div>`, keep);
+      wireProg();
+      if (!locked) on(".dq-c", answer);
+      btn("nx", next);
+    }
+    function answer(el) {
+      if (locked) return; locked = true;
+      const ok = el.dataset.v === q.f;
+      $$(".dq-c", $("#exBody")).forEach((x) => {
+        if (x.dataset.v === q.f) x.classList.add("ok"); else if (x === el) x.classList.add("ko");
+        x.disabled = true;
+      });
+      if (ok) score++;
+      $(".dq-fb").innerHTML = `<div class="${ok ? "fb-ok" : "fb-ko"}">${ok ? "✅" : "❌"} <b>${q.roman}</b> → ${FONC_NOM[q.f]} : ${FONC_TXT[q.f]}</div>
+        <button class="btn big" id="nx">Suivant →</button>`;
+      btn("nx", next);
+    }
+    function finish() {
+      const ms = stopT(), rec = setBest("qfonc", { score, time: ms });
+      A.earnXP(score * 3);
+      if (score >= 8) { const first = !isDone("fn:fonc"); setDone("fn:fonc"); if (first) A.earnXP(20); }
+      paint(`<div class="ex-win"><div class="win-big">${score}/${TOTAL}</div>
+        <div class="win-sub">${fmtT(ms)}${rec ? " · <b>record</b> 🏆" : ""}</div>
+        <div class="hint">Les trois positions à ne jamais oublier : <b>I vi iii</b> = repos, <b>IV ii</b> = départ, <b>V vii°</b> = tension. Le iii est le plus glissant des sept — s'il te piège, c'est normal.</div>
+        <button class="btn big primary" id="again">↻ Relancer</button>
+        <button class="btn big ghost" id="quit">Terminer</button></div>`);
+      btn("again", exQFonc); btn("quit", closeSheet);
+    }
+  }
+
+  /* ==================== DRILL B — LA GRILLE EN DEGRÉS ==================== */
+  const GRILLES = [
+    { d: [0, 4, 5, 3], n: "les quatre accords" },
+    { d: [0, 5, 3, 4], n: "la pop 50s" },
+    { d: [5, 3, 0, 4], n: "le tour mineur" },
+    { d: [1, 4, 0, 0], n: "le ii–V–I" },
+    { d: [0, 3, 4, 0], n: "le trois-accords" },
+    { d: [5, 1, 4, 0], n: "l'anatole" },
+    { d: [0, 2, 3, 4], n: "la montée" },
+    { d: [3, 4, 5, 0], n: "la remontée" },
+    { d: [0, 3, 5, 4], n: "le pont" }
+  ];
+  function exQDeg() {
+    openSheet("🔢 La grille en degrés");
+    const TOTAL = 8;
+    let n = 0, score = 0, q = null, locked = false;
+    startT(); next();
+
+    function gen() {
+      const t = pick(CIRCLE), g = pick(GRILLES), D = deg7(t);
+      const bonne = g.d.map((i) => D[i].roman).join(" – ");
+      const faux = [];
+      while (faux.length < 3) {
+        const alt = pick(GRILLES);
+        const s = alt.d.map((i) => D[i].roman).join(" – ");
+        if (s !== bonne && faux.indexOf(s) < 0) faux.push(s);
+      }
+      return { t, g, D, accords: g.d.map((i) => D[i]), bonne, choices: shuffle([bonne].concat(faux)) };
+    }
+    function next() { if (n >= TOTAL) return finish(); n++; locked = false; q = gen(); draw(""); }
+    function draw(fb, keep) {
+      paint(`<div class="ecl-top">${n}/${TOTAL} · <b>${score}</b> bonne${score > 1 ? "s" : ""}</div>
+        <div class="dq">En <b>${A.disp(q.t)} majeur</b> :<br><b>${line(q.accords)}</b><br>
+          <span class="dq-hint">quels degrés ?</span></div>
+        <div class="btnrow center">${pbtn(q.accords, "▶ Écouter la grille", "mini")}</div>
+        <div class="dq-choices">${q.choices.map((c) => `<button class="dq-c" data-v="${c}">${c}</button>`).join("")}</div>
+        <div class="dq-fb">${fb}</div>`, keep);
+      wireProg();
+      if (!locked) on(".dq-c", answer);
+      btn("nx", next);
+    }
+    function answer(el) {
+      if (locked) return; locked = true;
+      const ok = el.dataset.v === q.bonne;
+      $$(".dq-c", $("#exBody")).forEach((x) => {
+        if (x.dataset.v === q.bonne) x.classList.add("ok"); else if (x === el) x.classList.add("ko");
+        x.disabled = true;
+      });
+      if (ok) score++;
+      $(".dq-fb").innerHTML = `<div class="${ok ? "fb-ok" : "fb-ko"}">${ok ? "✅" : "❌"} <b>${q.bonne}</b> — c'est ${q.g.n}.
+        Fonctions : ${q.g.d.map((i) => FONC[i]).join(" → ")}.</div>
+        <button class="btn big" id="nx">Suivant →</button>`;
+      btn("nx", next);
+    }
+    function finish() {
+      const ms = stopT(), rec = setBest("qdeg", { score, time: ms });
+      A.earnXP(score * 4);
+      if (score >= 6) { const first = !isDone("fn:deg"); setDone("fn:deg"); if (first) A.earnXP(20); }
+      paint(`<div class="ex-win"><div class="win-big">${score}/${TOTAL}</div>
+        <div class="win-sub">${fmtT(ms)}${rec ? " · <b>record</b> 🏆" : ""}</div>
+        <div class="hint">C'est l'exercice qui rend une chanson <b>transposable</b> : tant que tu lis des noms d'accords, tu réapprends tout à chaque tonalité. Dès que tu lis des degrés, tu as appris la chanson <b>douze fois</b> d'un coup.</div>
+        <button class="btn big primary" id="again">↻ Relancer</button>
+        <button class="btn big ghost" id="quit">Terminer</button></div>`);
+      btn("again", exQDeg); btn("quit", closeSheet);
+    }
+  }
+
+  /* ==================== DRILL C — QUI ANNONCE QUI ==================== */
+  function exQSec() {
+    openSheet("🎯 Qui annonce qui");
+    const TOTAL = 8;
+    let n = 0, score = 0, q = null, locked = false;
+    startT(); next();
+
+    /* quatre étiquettes DISTINCTES : sinon deux boutons portent la même réponse */
+    function opts(bonne, faux, D) {
+      const out = [lbl(bonne)];
+      faux.concat(D.map((c) => ({ root: c.root, qual: "dom7" }))).forEach((c) => {
+        const L = lbl(c); if (out.length < 4 && out.indexOf(L) < 0) out.push(L);
+      });
+      return shuffle(out);
+    }
+    function gen() {
+      const t = pick(CIRCLE), D = deg7(t), S7 = deg7s(t);
+      const kind = Math.random() < 0.6 ? "sec" : "tri";
+      if (kind === "sec") {
+        const i = pick([1, 2, 3, 4, 5]), cible = D[i], bonne = secDom(cible.root);
+        const faux = [
+          { root: LC.majorScale(cible.root)[4], qual: "maj" },        // la bonne fondamentale, sans la 7e
+          { root: LC.majorScale(cible.root)[3], qual: "dom7" },       // la quarte au lieu de la quinte
+          { root: triSub(bonne.root).root, qual: "dom7" }             // la substitution (juste, mais pas la réponse)
+        ];
+        return { kind, t, cible, roman: D[i].roman, bonne,
+          choices: opts(bonne, faux, D), rep: lbl(bonne),
+          q: `Quel accord <b>annonce</b> ${lbl(cible)} (${D[i].roman}) ?`,
+          why: `La dominante secondaire d'un accord est le <b>7</b> bâti une quinte au-dessus de sa fondamentale : ${A.disp(cible.root)} → ${A.disp(bonne.root)}7. On l'écrit <b>V/${D[i].roman}</b>.`,
+          demo: [bonne, cible] };
+      }
+      const V = S7[4], bonne = triSub(V.root);
+      const faux = [
+        { root: LC.majorScale(V.root)[4], qual: "dom7" },
+        { root: triSub(V.root).root, qual: "maj7" },
+        { root: LC.majorScale(t)[1], qual: "dom7" }
+      ];
+      return { kind, t, bonne, choices: opts(bonne, faux, D), rep: lbl(bonne),
+        q: `En <b>${A.disp(t)} majeur</b> : quelle est la <b>substitution tritonique</b> de ${lbl(V)} ?`,
+        why: `Le triton (tierce + septième) de ${lbl(V)} est exactement celui de <b>${lbl(bonne)}</b> — les deux notes s'échangent leurs rôles. Fondamentale à un <b>triton</b> de distance, et la basse tombe d'un demi-ton sur le I.`,
+        demo: [bonne, { root: t, qual: "maj" }] };
+    }
+    function next() { if (n >= TOTAL) return finish(); n++; locked = false; q = gen(); draw(""); }
+    function draw(fb, keep) {
+      paint(`<div class="ecl-top">${n}/${TOTAL} · <b>${score}</b> bonne${score > 1 ? "s" : ""}</div>
+        <div class="dq">${q.kind === "sec" ? `Tonalité de <b>${A.disp(q.t)} majeur</b>.<br>` : ""}${q.q}</div>
+        <div class="dq-choices">${q.choices.map((c) => `<button class="dq-c" data-v="${c}">${c}</button>`).join("")}</div>
+        <div class="dq-fb">${fb}</div>`, keep);
+      if (!locked) on(".dq-c", answer);
+      wireProg(); btn("nx", next);
+    }
+    function answer(el) {
+      if (locked) return; locked = true;
+      const ok = el.dataset.v === q.rep;
+      $$(".dq-c", $("#exBody")).forEach((x) => {
+        if (x.dataset.v === q.rep) x.classList.add("ok"); else if (x === el) x.classList.add("ko");
+        x.disabled = true;
+      });
+      if (ok) score++;
+      $(".dq-fb").innerHTML = `<div class="${ok ? "fb-ok" : "fb-ko"}">${ok ? "✅" : "❌"} <b>${q.rep}</b> — ${q.why}</div>
+        <div class="btnrow center">${pbtn(q.demo, "▶ Écouter la résolution", "mini")}</div>
+        <button class="btn big" id="nx">Suivant →</button>`;
+      wireProg(); btn("nx", next);
+    }
+    function finish() {
+      const ms = stopT(), rec = setBest("qsec", { score, time: ms });
+      A.earnXP(score * 4);
+      if (score >= 6) { const first = !isDone("fn:sec"); setDone("fn:sec"); if (first) A.earnXP(25); }
+      paint(`<div class="ex-win"><div class="win-big">${score}/${TOTAL}</div>
+        <div class="win-sub">${fmtT(ms)}${rec ? " · <b>record</b> 🏆" : ""}</div>
+        <div class="hint">Ces deux gestes expliquent la quasi-totalité des accords « bizarres » que tu croises. Le troisième, c'est l'emprunt modal — et avec les trois, tu peux analyser presque n'importe quelle grille de pop ou de jazz.</div>
+        <button class="btn big primary" id="again">↻ Relancer</button>
+        <button class="btn big ghost" id="quit">Terminer</button></div>`);
+      btn("again", exQSec); btn("quit", closeSheet);
+    }
+  }
+
+  /* ---------------------------- carte du chantier ---------------------------- */
+  function cardFonctions() {
+    const flags = ["fn:f1", "fn:f2", "fn:f3", "fn:f4", "fn:f5", "fn:fonc", "fn:deg", "fn:sec"];
+    const done = flags.filter(isDone).length;
+    return `<div class="ate-card">
+      <div class="ate-h"><span class="ate-e">🏛</span><div><div class="ate-t">Les fonctions</div>
+        <div class="ate-s">Pourquoi les accords <b>bougent</b>. Cadences, dominantes secondaires, emprunts, réharmonisation.</div></div>
+        <span class="ate-c">${done}/8</span></div>
+      <div class="ate-sub">📖 Comprendre — cinq fiches, toutes écoutables</div>
+      <div class="ate-rows">
+        ${row("fonctions", isDone("fn:f1") ? "✅" : "🏛", "Les trois fonctions", "Repos, départ, tension — et le sens de circulation", "")}
+        ${row("cadences",  isDone("fn:f2") ? "✅" : "🚪", "Les cinq cadences", "La ponctuation : pourquoi un couplet appelle un refrain", "")}
+        ${row("secondaires", isDone("fn:f3") ? "✅" : "🎯", "Le triton & les dominantes secondaires", "N'importe quel accord peut avoir sa dominante", "")}
+        ${row("emprunts",  isDone("fn:f4") ? "✅" : "🌑", "Emprunts & substitution tritonique", "Les accords « hors tonalité » qui sonnent juste", "")}
+        ${row("reharmo",   isDone("fn:f5") ? "✅" : "🎨", "Réharmoniser — les 8 gestes", "La même grille, huit fois, avant/après", "")}
+      </div>
+      <div class="ate-sub">⚡ Automatiser</div>
+      <div class="ate-rows">
+        ${row("qfonc", isDone("fn:fonc") ? "✅" : "①", "Quelle fonction ?", "10 accords, 12 tonalités — T, S ou D", recTxt("qfonc", "/10"))}
+        ${row("qdeg",  isDone("fn:deg")  ? "✅" : "②", "La grille en degrés", "Lire une suite d'accords en chiffres romains", recTxt("qdeg", "/8"))}
+        ${row("qsec",  isDone("fn:sec")  ? "✅" : "③", "Qui annonce qui", "Dominantes secondaires & substitution tritonique", recTxt("qsec", "/8"))}
+      </div></div>`;
+  }
+
   /* =========================================================================
      SÉANCE DU JOUR — cinq lignes, figées pour la journée.
      Réviser → voir les fonctions sur le manche → viser → jouer → comprendre.
@@ -1930,9 +2497,14 @@ const LCEx = (function () {
     // 4 · Jouer — tonalité et règle du jour (5 pas sur le cercle chaque jour)
     const t = CIRCLE[(dn * 5) % 12], m = (dn + Math.floor(dn / 12)) % 2 === 1;
     plan.push({ id: "jam", t: m ? LC.relativeMinor(t) : t, m: m, rule: dn % JAM_RULES.length });
-    // 5 · Comprendre — la prochaine leçon, sinon la tonalité
+    // 5 · Comprendre — leçon et chantier des fonctions en alternance, puis la tonalité
     const L = typeof LESSONS !== "undefined" ? LESSONS.find((l) => !A.S.done[l.id]) : null;
-    if (L) plan.push({ id: "lesson:" + L.id });
+    const FN_SEANCE = [["fonctions", "fn:f1"], ["cadences", "fn:f2"], ["secondaires", "fn:f3"],
+      ["emprunts", "fn:f4"], ["reharmo", "fn:f5"], ["qfonc", "fn:fonc"], ["qdeg", "fn:deg"], ["qsec", "fn:sec"]];
+    const F = FN_SEANCE.find((x) => !isDone(x[1]));
+    if (F && (!L || dn % 2 === 1)) plan.push({ id: F[0] });
+    else if (L) plan.push({ id: "lesson:" + L.id });
+    else if (dn % 2 === 1) plan.push({ id: ["qfonc", "qdeg", "qsec"][dn % 3] });
     else plan.push({ id: "key" + ([1, 2, 3, 4].find((k) => !isDone("kf:" + k)) || [3, 4][dn % 2]) });
     return plan;
   }
@@ -1974,6 +2546,20 @@ const LCEx = (function () {
     }
     if (id.indexOf("key") === 0) {
       return { e: "🧭", cat: "Comprendre", min: 5, titre: "Deviner la tonalité · niveau " + k + " · " + KEY_LV[k - 1][0], why: KEY_LV[k - 1][1] };
+    }
+    const FN_INFO = {
+      fonctions:   ["🏛", "Les trois fonctions", "Repos, départ, tension : pourquoi les accords bougent."],
+      cadences:    ["🚪", "Les cinq cadences", "La ponctuation d'une chanson — et pourquoi un couplet appelle un refrain."],
+      secondaires: ["🎯", "Les dominantes secondaires", "Le triton, et comment annoncer n'importe quel accord."],
+      emprunts:    ["🌑", "Emprunts & substitution tritonique", "Les accords hors tonalité qui sonnent juste."],
+      reharmo:     ["🎨", "Réharmoniser · les 8 gestes", "La même grille, huit fois : écoute la différence."],
+      qfonc:       ["⚡", "Quelle fonction ?", "10 accords, 12 tonalités : T, S ou D."],
+      qdeg:        ["🔢", "La grille en degrés", "Lire une suite d'accords en chiffres romains."],
+      qsec:        ["🎯", "Qui annonce qui", "Dominantes secondaires et substitution tritonique."]
+    };
+    if (FN_INFO[id]) {
+      const f = FN_INFO[id];
+      return { e: f[0], cat: "Comprendre", min: 5, titre: f[1], why: f[2] };
     }
     return { e: "•", cat: "", min: 0, titre: id, why: "" };
   }
