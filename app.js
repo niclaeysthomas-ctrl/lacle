@@ -9,7 +9,9 @@
   const KEYS12 = ["C", "G", "D", "A", "E", "B", "F#", "Db", "Ab", "Eb", "Bb", "F"];
 
   /* ---------------- état ---------------- */
-  const DEF = { nameSystem: "letters", xp: 0, done: {}, drill: {}, lastDay: null, streak: 0 };
+  /* sonOpt : les exercices qui se répondent À L'OREILLE sont-ils imposés ?
+     Par défaut non — il n'a pas toujours l'occasion d'écouter. */
+  const DEF = { nameSystem: "letters", xp: 0, done: {}, drill: {}, lastDay: null, streak: 0, sonOpt: true };
   let S = load();
   function load() { try { return Object.assign({}, DEF, JSON.parse(localStorage.getItem("lacle") || "{}")); } catch (e) { return Object.assign({}, DEF); } }
   function save() { localStorage.setItem("lacle", JSON.stringify(S)); }

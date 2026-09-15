@@ -41,6 +41,15 @@ const LCEx = (function () {
 
   // Ligne de la séance du jour en cours (null = exo lancé depuis l'Atelier).
   let SLOT = null;
+  /* Le relevé se répond À L'OREILLE : il ne peut pas être imposé un jour sans son.
+     En mode facultatif il sort des 5 lignes et devient une ligne bonus, toujours
+     visible, jamais comptée. */
+  const sonOpt = () => A.S.sonOpt !== false;
+  const CASQUE = '<span class="csq">🎧</span>';
+  const RL_SEANCE = [["rel1", "rl:1"], ["rel2", "rl:2"], ["rel3-1", "rl:3:1"], ["rel3-2", "rl:3:2"],
+    ["rel3-3", "rl:3:3"], ["rel4", "rl:4"], ["rel5", "rl:5"], ["rel6", "rl:6"],
+    ["relmethode", "rl:methode"], ["relcarnet", "rl:carnet"]];
+  const releveDuJour = () => (RL_SEANCE.find((x) => !isDone(x[1])) || RL_SEANCE[5])[0];
 
   /* ============================ ÉTAT / RECORDS ============================ */
   function st() {
@@ -225,6 +234,7 @@ const LCEx = (function () {
     $$("[data-pkey]", v).forEach((b) => { b.onclick = () => { SLOT = null; startPenta(b.dataset.pkey); }; });
     $$("[data-ex]", v).forEach((b) => { b.onclick = () => { SLOT = null; startEx(b.dataset.ex); }; });
     $$("[data-seance]", v).forEach((b) => { b.onclick = () => lancerSeance(b.dataset.seance); });
+    $$("[data-son]", v).forEach((b) => { b.onclick = () => { A.S.sonOpt = b.dataset.son === "1"; A.save(); A.render(); }; });
   }
   function startEx(id) {
     if (id === "eclair-gammes") return runEclair("gammes", "⚡ Éclair · gammes", qGammes);
@@ -3021,7 +3031,7 @@ const LCEx = (function () {
     const nb = carnet().length;
     return `<div class="ate-card">
       <div class="ate-h"><span class="ate-e">👂</span><div><div class="ate-t">Le relevé</div>
-        <div class="ate-s">Trouver les accords <b>à l'oreille</b>. Là où la théorie arrête d'être une connaissance.</div></div>
+        <div class="ate-s">Trouver les accords <b>à l'oreille</b> ${CASQUE}. Là où la théorie arrête d'être une connaissance.<br><small style="opacity:.75">Demande du son — d'où le fait qu'il ne soit jamais imposé dans la séance.</small></div></div>
         <span class="ate-c">${done}/8</span></div>
       <div class="ate-sub">👂 L'oreille — tout se répond en écoutant</div>
       <div class="ate-rows">
@@ -3103,13 +3113,11 @@ const LCEx = (function () {
     const L = typeof LESSONS !== "undefined" ? LESSONS.find((l) => !A.S.done[l.id]) : null;
     const FN_SEANCE = [["fonctions", "fn:f1"], ["cadences", "fn:f2"], ["secondaires", "fn:f3"],
       ["emprunts", "fn:f4"], ["reharmo", "fn:f5"], ["qfonc", "fn:fonc"], ["qdeg", "fn:deg"], ["qsec", "fn:sec"]];
-    const RL_SEANCE = [["rel1", "rl:1"], ["rel2", "rl:2"], ["rel3-1", "rl:3:1"], ["rel3-2", "rl:3:2"],
-      ["rel3-3", "rl:3:3"], ["rel4", "rl:4"], ["rel5", "rl:5"], ["rel6", "rl:6"],
-      ["relmethode", "rl:methode"], ["relcarnet", "rl:carnet"]];
     const F = FN_SEANCE.find((x) => !isDone(x[1]));
-    const R = RL_SEANCE.find((x) => !isDone(x[1]));
+    const R = sonOpt() ? null : RL_SEANCE.find((x) => !isDone(x[1]));
     /* trois pistes en rotation : le parcours, les fonctions, le relevé.
-       Aucune ne peut étouffer les autres — surtout pas le relevé, qui est la sortie. */
+       Le relevé n'entre dans les 5 lignes que si l'écoute est obligatoire ;
+       sinon il vit en ligne bonus, sous la séance. */
     const cand = [];
     if (L) cand.push("lesson:" + L.id);
     if (F) cand.push(F[0]);
@@ -3221,6 +3229,16 @@ const LCEx = (function () {
         <span class="l-arrow">›</span></button>`;
     }).join("");
     const wk = semaine(se);
+    /* la ligne d'oreille : visible tous les jours, jamais comptée */
+    const rid = releveDuJour(), RI = infoLigne({ id: rid });   /* infoLigne attend une LIGNE de plan, pas un id */
+    const bonusRow = sonOpt() ? `<div class="se-opt">
+      <button class="se-row opt" data-seance="${rid}">
+        <span class="se-n">${CASQUE}</span>
+        <span class="se-b"><span class="se-cat">${RI.e} Si tu peux écouter · ${RI.min} min · facultatif</span>
+          <span class="se-t">${RI.titre}</span><span class="se-w">${RI.why}</span></span>
+        <span class="l-arrow">›</span></button>
+      <button class="se-son" data-son="0">🎧 Rendre les exercices d'écoute obligatoires</button></div>`
+      : `<div class="se-opt"><button class="se-son" data-son="1">🔇 Rendre les exercices d'écoute facultatifs</button></div>`;
     return `<div class="se-card">
       <div class="se-h"><div><div class="se-title">📅 Séance du jour</div>
         <div class="se-sub">≈ ${min} min, dans l'ordre. Une ligne se coche quand l'exo lancé d'ici arrive au bout — pas avant.</div></div>
@@ -3228,6 +3246,7 @@ const LCEx = (function () {
       <div class="prog-bar"><span style="width:${Math.round(fait / se.plan.length * 100)}%"></span></div>
       ${fait === se.plan.length ? `<div class="fb-ok">✅ Séance bouclée, +30 XP. Celle de demain sera différente — celle-ci ne bouge plus.</div>` : ""}
       <div class="se-rows">${rows}</div>
+      ${bonusRow}
       <div class="se-week">${wk.jours.map((j) => `<span class="se-d${j.today ? " today" : ""}"><span class="se-dot${j.c >= SE_N ? " full" : j.c ? " part" : ""}"></span>${j.l}</span>`).join("")}
         <span class="se-streak">🔥 <b>${wk.serie}</b> j de séance complète</span></div>
     </div>`;
