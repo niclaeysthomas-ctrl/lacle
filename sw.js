@@ -1,5 +1,5 @@
 /* LA CLÉ — service worker (offline-first) */
-const CACHE = "lacle-v9-son-optionnel";
+const CACHE = "lacle-v10-son-optionnel";
 const ASSETS = [
   "./",
   "./index.html",
@@ -30,7 +30,7 @@ self.addEventListener("fetch", (e) => {
     caches.match(e.request).then((hit) =>
       hit || fetch(e.request).then((res) => {
         const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
+        if (res.ok) caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
         return res;
       }).catch(() => caches.match("./index.html"))
     )
